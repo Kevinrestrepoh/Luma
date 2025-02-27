@@ -1,6 +1,10 @@
 package main
 
-import tea "github.com/charmbracelet/bubbletea"
+import (
+	"fmt"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
 
 var lastFocus string
 
@@ -125,7 +129,16 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "enter":
-			if m.url.Value() != "" && m.mode == "normal" {
+			url := m.url.Value()
+			if url != "" && m.mode == "normal" {
+				method := m.methods[m.selectedMethod].Name
+				body := m.body.Value()
+				res, err := FetchApi(url, method, nil, body)
+				if err != nil {
+					return m, nil
+				}
+				m.output = fmt.Sprintf("Status: %s \n\n%s", res.Status, res.Body)
+				return m, nil
 			}
 		}
 	}

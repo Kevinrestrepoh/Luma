@@ -30,8 +30,17 @@ type Method struct {
 	Color lipgloss.Color
 }
 
+type ApiResponse struct {
+	Status string
+	Body   string
+}
+
+type ApiHeaders struct {
+	Key   string
+	Value string
+}
+
 func initModel() *model {
-	// methods := []string{"GET", "POST", "PUT", "DELETE"}
 	methods := []*Method{
 		{Name: "GET", Color: lipgloss.Color("#b5e48c")},
 		{Name: "POST", Color: lipgloss.Color("#ffe566")},
