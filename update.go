@@ -9,7 +9,6 @@ import (
 var lastFocus string
 
 func (m *model) Init() tea.Cmd {
-	m.url.Focus()
 	m.body.ShowLineNumbers = false
 	m.UpdateStyles()
 	return nil
@@ -46,35 +45,47 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "i":
 			if m.mode == "normal" && m.focus != "output" {
 				m.mode = "insert"
+				if m.focus == "url" {
+					m.url.Focus()
+					m.body.Blur()
+				} else {
+					m.body.Focus()
+					m.url.Blur()
+				}
+
 				return m, nil
 			}
 		case "esc":
 			m.mode = "normal"
+			m.url.Blur()
+			m.body.Blur()
+			m.UpdateStyles()
 			return m, nil
+		case "v":
+			if m.mode == "normal" && m.focus == "output" {
+				m.mode = "visual"
+				m.UpdateStyles()
+				return m, nil
+			}
 
 		case "j", "down":
 			if m.mode == "normal" {
 				if !horizontal {
 					if m.focus == "body" {
 						m.focus = "output"
-						m.body.Blur()
-						m.url.Blur()
 					} else if m.focus == "output" {
 						m.focus = "url"
-						m.url.Focus()
-						m.body.Blur()
 					} else {
 						m.focus = "body"
-						m.body.Focus()
-						m.url.Blur()
 					}
 					m.UpdateStyles()
 					return m, nil
 				}
 				m.focus = "body"
-				m.url.Blur()
-				m.body.Focus()
 				m.UpdateStyles()
+				return m, nil
+			} else if m.mode == "visual" {
+				m.output.LineDown(1)
 				return m, nil
 			}
 
@@ -83,24 +94,19 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if !horizontal {
 					if m.focus == "body" {
 						m.focus = "url"
-						m.body.Blur()
-						m.url.Focus()
 					} else if m.focus == "output" {
 						m.focus = "body"
-						m.body.Focus()
-						m.url.Blur()
 					} else {
 						m.focus = "output"
-						m.url.Blur()
-						m.body.Blur()
 					}
 					m.UpdateStyles()
 					return m, nil
 				}
 				m.focus = "url"
-				m.body.Blur()
-				m.url.Focus()
 				m.UpdateStyles()
+				return m, nil
+			} else if m.mode == "visual" {
+				m.output.LineUp(1)
 				return m, nil
 			}
 
@@ -108,8 +114,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.mode == "normal" && horizontal {
 				lastFocus = m.focus
 				m.focus = "output"
-				m.body.Blur()
-				m.url.Blur()
 				m.UpdateStyles()
 				return m, nil
 			}
@@ -117,13 +121,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "h", "left":
 			if m.mode == "normal" && horizontal && m.focus == "output" {
 				m.focus = lastFocus
-				if m.focus == "url" {
-					m.url.Focus()
-					m.body.Blur()
-				} else {
-					m.body.Focus()
-					m.url.Blur()
-				}
 				m.UpdateStyles()
 				return m, nil
 			}
@@ -137,7 +134,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if err != nil {
 					return m, nil
 				}
-				m.output = fmt.Sprintf("Status: %s \n\n%s", res.Status, res.Body)
+				m.output.SetContent(fmt.Sprintf("Status: %s \n\n%s", res.Status, res.Body))
 				return m, nil
 			}
 		}

@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -17,7 +18,7 @@ type model struct {
 
 	url    textinput.Model
 	body   textarea.Model
-	output string
+	output viewport.Model
 
 	methodStyles *Styles
 	urlStyles    *Styles
@@ -57,6 +58,7 @@ func initModel() *model {
 		selectedMethod: 0,
 		url:            textinput.New(),
 		body:           textarea.New(),
+		output:         viewport.New(0, 0),
 		methodStyles:   s,
 		urlStyles:      s,
 		bodyStyles:     s,

@@ -40,24 +40,43 @@ func FocusStyles() *Styles {
 	return s
 }
 
+func VisualStyles() *Styles {
+	s := &Styles{}
+
+	s.BorderColor = TextColor
+	s.InputField = lipgloss.NewStyle().
+		BorderForeground(s.BorderColor).
+		Foreground(TextColor).
+		BorderStyle(lipgloss.RoundedBorder()).
+		Padding(0)
+
+	return s
+}
+
 func (m *model) UpdateStyles() {
 	base := InitStyles()
+	focus := FocusStyles()
+	visual := VisualStyles()
 
 	switch m.focus {
 	case "url":
-		m.urlStyles = FocusStyles()
+		m.urlStyles = focus
 		m.bodyStyles = base
 		m.outputStyles = base
 
 	case "body":
-		m.bodyStyles = FocusStyles()
+		m.bodyStyles = focus
 		m.urlStyles = base
 		m.outputStyles = base
 
 	case "output":
-		m.outputStyles = FocusStyles()
-		m.urlStyles = base
-		m.bodyStyles = base
+		if m.mode == "visual" {
+			m.outputStyles = visual
+		} else {
+			m.outputStyles = focus
+			m.urlStyles = base
+			m.bodyStyles = base
+		}
 
 	default:
 		m.urlStyles = base

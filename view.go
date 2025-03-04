@@ -23,11 +23,14 @@ func (m *model) View() string {
 	m.body.SetWidth(halfWidth - 2)
 	m.body.SetHeight(bodyHeight)
 
+	m.output.Width = halfWidth - 2
+	m.output.Height = outputHeight
+
 	methodColor := m.methods[m.selectedMethod].Color
 	methodView := m.methodStyles.InputField.Width(methodWidth).Foreground(methodColor).Render(m.methods[m.selectedMethod].Name)
 	urlView := m.urlStyles.InputField.Width(urlWidth).Render(m.url.View())
 	bodyView := m.bodyStyles.InputField.Width(halfWidth - 2).Height(bodyHeight).Render(m.body.View())
-	outputView := m.outputStyles.InputField.Width(halfWidth - 2).Height(outputHeight).Render(m.output)
+	outputView := m.outputStyles.InputField.Width(halfWidth - 2).Height(outputHeight).Render(m.output.View())
 
 	inputView := lipgloss.JoinVertical(
 		lipgloss.Left,
@@ -45,9 +48,12 @@ func (m *model) View() string {
 		m.body.SetWidth(m.width - 2)
 		m.body.SetHeight(m.height/3 - maxLinesURL)
 
+		m.output.Width = m.width - 2
+		m.output.Height = m.height / 2
+
 		urlView := m.urlStyles.InputField.Width(urlWidth).Render(m.url.View())
 		bodyView := m.bodyStyles.InputField.Width(m.width - 2).Height(m.height/3 - maxLinesURL).Render(m.body.View())
-		outputView := m.outputStyles.InputField.Width(m.width - 2).Height(m.height / 2).Render(m.output)
+		outputView := m.outputStyles.InputField.Width(m.width - 2).Height(m.height / 2).Render(m.output.View())
 
 		inputView := lipgloss.JoinVertical(
 			lipgloss.Left,
