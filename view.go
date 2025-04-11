@@ -7,7 +7,6 @@ func (m *model) View() string {
 	methodWidth := 8
 	statusWidth := 30
 	urlWidth := m.width - methodWidth - 4 - statusWidth
-	outputHeight := m.height - 5
 
 	if m.width < 50 {
 		urlWidth = m.width - methodWidth - 4
@@ -20,6 +19,7 @@ func (m *model) View() string {
 	}
 
 	bodyHeight := m.height - 5 - maxLinesURL
+	outputHeight := m.height - 5 - maxLinesURL
 
 	m.body.SetWidth(halfWidth - 2)
 	m.body.SetHeight(bodyHeight)
