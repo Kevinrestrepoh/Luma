@@ -9,8 +9,8 @@ type Styles struct {
 
 var (
 	PrimaryColor    = lipgloss.Color("#4a4e69")
-	SecundaryColor  = lipgloss.Color("#5A6A77")
-	TextColor       = lipgloss.Color("#BCC2DB")
+	SecundaryColor  = lipgloss.Color("#8d99ae")
+	TextColor       = lipgloss.Color("#e5e5e5")
 	BackgroundColor = lipgloss.Color("#64677C")
 )
 
@@ -60,17 +60,24 @@ func (m *model) UpdateStyles() {
 
 	switch m.focus {
 	case "url":
-		m.urlStyles = focus
-		m.bodyStyles = base
-		m.outputStyles = base
+		if m.mode == "insert" {
+			m.urlStyles = visual
+		} else {
+			m.urlStyles = focus
+			m.bodyStyles = base
+			m.outputStyles = base
+		}
 
 	case "body":
-		m.bodyStyles = focus
-		m.urlStyles = base
-		m.outputStyles = base
-
+		if m.mode == "insert" {
+			m.bodyStyles = visual
+		} else {
+			m.bodyStyles = focus
+			m.urlStyles = base
+			m.outputStyles = base
+		}
 	case "output":
-		if m.mode == "visual" {
+		if m.mode == "insert" {
 			m.outputStyles = visual
 		} else {
 			m.outputStyles = focus
@@ -81,5 +88,25 @@ func (m *model) UpdateStyles() {
 	default:
 		m.urlStyles = base
 		m.bodyStyles = base
+		m.outputStyles = base
 	}
+}
+
+func StatusStyle(code int) lipgloss.Style {
+	var color lipgloss.Color
+
+	switch {
+	case code >= 200 && code < 300:
+		color = lipgloss.Color("#aaf683")
+	case code >= 300 && code < 400:
+		color = lipgloss.Color("#ffd97d")
+	case code >= 400 && code < 500:
+		color = lipgloss.Color("#ee6055")
+	case code >= 500:
+		color = lipgloss.Color("#ff5d8f")
+	default:
+		color = lipgloss.Color("#9e9e9e")
+	}
+
+	return lipgloss.NewStyle().Foreground(color).Padding(1)
 }

@@ -5,8 +5,9 @@ import "github.com/charmbracelet/lipgloss"
 func (m *model) View() string {
 	halfWidth := m.width / 2
 	methodWidth := 8
-	urlWidth := halfWidth - methodWidth - 4
-	outputHeight := m.height - 2
+	statusWidth := 30
+	urlWidth := m.width - methodWidth - 4 - statusWidth
+	outputHeight := m.height - 5
 
 	if m.width < 50 {
 		urlWidth = m.width - methodWidth - 4
@@ -27,33 +28,37 @@ func (m *model) View() string {
 	m.output.Height = outputHeight
 
 	methodColor := m.methods[m.selectedMethod].Color
-	methodView := m.methodStyles.InputField.Width(methodWidth).Foreground(methodColor).Render(m.methods[m.selectedMethod].Name)
+	methodView := m.methodStyles.InputField.Width(methodWidth).
+		Foreground(methodColor).
+		Align(lipgloss.Center).
+		Render(m.methods[m.selectedMethod].Name)
 	urlView := m.urlStyles.InputField.Width(urlWidth).Render(m.url.View())
 	bodyView := m.bodyStyles.InputField.Width(halfWidth - 2).Height(bodyHeight).Render(m.body.View())
+	statusView := StatusStyle(m.statusCode).Width(statusWidth).Align(lipgloss.Center).Render(m.status)
 	outputView := m.outputStyles.InputField.Width(halfWidth - 2).Height(outputHeight).Render(m.output.View())
 
-	inputView := lipgloss.JoinVertical(
-		lipgloss.Left,
-		lipgloss.JoinHorizontal(lipgloss.Top, methodView, urlView),
-		bodyView,
-	)
+	top := lipgloss.JoinHorizontal(lipgloss.Top, methodView, urlView, statusView)
 
 	if m.width >= 50 {
-		return lipgloss.JoinHorizontal(
-			lipgloss.Top,
-			lipgloss.NewStyle().Width(halfWidth).Render(inputView),
-			lipgloss.NewStyle().Width(halfWidth).Render(outputView),
+		return lipgloss.JoinVertical(lipgloss.Top,
+			top,
+			lipgloss.JoinHorizontal(
+				lipgloss.Left,
+				bodyView,
+				outputView,
+			),
 		)
 	} else {
 		m.body.SetWidth(m.width - 2)
 		m.body.SetHeight(m.height/3 - maxLinesURL)
 
 		m.output.Width = m.width - 2
-		m.output.Height = m.height / 2
+		m.output.Height = m.height/2 - 1
 
 		urlView := m.urlStyles.InputField.Width(urlWidth).Render(m.url.View())
 		bodyView := m.bodyStyles.InputField.Width(m.width - 2).Height(m.height/3 - maxLinesURL).Render(m.body.View())
-		outputView := m.outputStyles.InputField.Width(m.width - 2).Height(m.height / 2).Render(m.output.View())
+		statusView := StatusStyle(m.statusCode).Width(m.width - 2).Padding(0).Align(lipgloss.Right).Render(m.status)
+		outputView := m.outputStyles.InputField.Width(m.width - 2).Height(m.height/2 - 1).Render(m.output.View())
 
 		inputView := lipgloss.JoinVertical(
 			lipgloss.Left,
@@ -64,6 +69,7 @@ func (m *model) View() string {
 		return lipgloss.JoinVertical(
 			lipgloss.Left,
 			inputView,
+			statusView,
 			outputView,
 		)
 	}

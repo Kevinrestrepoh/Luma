@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -43,16 +41,21 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "i":
-			if m.mode == "normal" && m.focus != "output" {
+			if m.mode == "normal" {
 				m.mode = "insert"
-				if m.focus == "url" {
+				switch m.focus {
+				case "url":
 					m.url.Focus()
 					m.body.Blur()
-				} else {
+				case "body":
 					m.body.Focus()
+					m.url.Blur()
+				case "output":
+					m.body.Blur()
 					m.url.Blur()
 				}
 
+				m.UpdateStyles()
 				return m, nil
 			}
 		case "esc":
@@ -61,21 +64,17 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.body.Blur()
 			m.UpdateStyles()
 			return m, nil
-		case "v":
-			if m.mode == "normal" && m.focus == "output" {
-				m.mode = "visual"
-				m.UpdateStyles()
-				return m, nil
-			}
 
 		case "j", "down":
-			if m.mode == "normal" {
+			switch m.mode {
+			case "normal":
 				if !horizontal {
-					if m.focus == "body" {
+					switch m.focus {
+					case "body":
 						m.focus = "output"
-					} else if m.focus == "output" {
+					case "output":
 						m.focus = "url"
-					} else {
+					default:
 						m.focus = "body"
 					}
 					m.UpdateStyles()
@@ -84,19 +83,23 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.focus = "body"
 				m.UpdateStyles()
 				return m, nil
-			} else if m.mode == "visual" {
-				m.output.LineDown(1)
-				return m, nil
+			case "insert":
+				if m.focus == "output" {
+					m.output.LineDown(1)
+					return m, nil
+				}
 			}
 
 		case "k", "up":
-			if m.mode == "normal" {
+			switch m.mode {
+			case "normal":
 				if !horizontal {
-					if m.focus == "body" {
+					switch m.focus {
+					case "body":
 						m.focus = "url"
-					} else if m.focus == "output" {
+					case "output":
 						m.focus = "body"
-					} else {
+					default:
 						m.focus = "output"
 					}
 					m.UpdateStyles()
@@ -105,9 +108,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.focus = "url"
 				m.UpdateStyles()
 				return m, nil
-			} else if m.mode == "visual" {
-				m.output.LineUp(1)
-				return m, nil
+			case "insert":
+				if m.focus == "output" {
+					m.output.LineUp(1)
+					return m, nil
+				}
 			}
 
 		case "l", "right":
@@ -126,15 +131,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "enter":
-			url := m.url.Value()
-			if url != "" && m.mode == "normal" {
-				method := m.methods[m.selectedMethod].Name
-				body := m.body.Value()
-				res, err := FetchApi(url, method, nil, body)
-				if err != nil {
-					return m, nil
-				}
-				m.output.SetContent(fmt.Sprintf("Status: %s \n\n%s", res.Status, res.Body))
+			if m.mode == "normal" {
+				go m.FetchApi()
 				return m, nil
 			}
 		}

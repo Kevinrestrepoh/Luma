@@ -8,12 +8,21 @@ import (
 	"time"
 )
 
-func FetchApi(url string, method string, headers []*ApiHeaders, body string) (*ApiResponse, error) {
+func (m *model) FetchApi() {
+	url := m.url.Value()
+	if url == "" {
+		return
+	}
+
+	method := m.methods[m.selectedMethod].Name
+	body := m.body.Value()
+	headers := []*ApiHeaders{}
+
 	reqBody := bytes.NewBufferString(body)
 
 	req, err := http.NewRequest(method, url, reqBody)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	for _, h := range headers {
@@ -23,21 +32,18 @@ func FetchApi(url string, method string, headers []*ApiHeaders, body string) (*A
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	apiResponse := &ApiResponse{
-		Status: resp.Status,
-		Body:   writeJSON(respBody),
-	}
-
-	return apiResponse, nil
+	m.statusCode = resp.StatusCode
+	m.status = resp.Status
+	m.output.SetContent(writeJSON(respBody))
 }
 
 func writeJSON(data []byte) string {
