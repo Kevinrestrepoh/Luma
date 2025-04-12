@@ -16,11 +16,12 @@ type model struct {
 	focus string
 	mode  string
 
-	url        textinput.Model
-	body       textarea.Model
-	statusCode int
-	status     string
-	output     viewport.Model
+	url          textinput.Model
+	body         textarea.Model
+	statusCode   int
+	status       string
+	output       viewport.Model
+	responseTime string
 
 	methodStyles *Styles
 	urlStyles    *Styles

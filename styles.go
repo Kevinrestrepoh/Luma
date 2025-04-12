@@ -8,10 +8,11 @@ type Styles struct {
 }
 
 var (
-	PrimaryColor    = lipgloss.Color("#4a4e69")
-	SecundaryColor  = lipgloss.Color("#8d99ae")
-	TextColor       = lipgloss.Color("#e5e5e5")
-	BackgroundColor = lipgloss.Color("#64677C")
+	PrimaryColor      = lipgloss.Color("#4a4e69")
+	SecundaryColor    = lipgloss.Color("#8d99ae")
+	TextColor         = lipgloss.Color("#e5e5e5")
+	BackgroundColor   = lipgloss.Color("#64677C")
+	ResponseTimeColor = lipgloss.Color("#d7d3c1")
 )
 
 func InitStyles() *Styles {

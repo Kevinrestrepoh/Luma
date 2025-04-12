@@ -20,6 +20,7 @@ func (m *model) FetchApi() {
 
 	reqBody := bytes.NewBufferString(body)
 
+	start := time.Now()
 	req, err := http.NewRequest(method, url, reqBody)
 	if err != nil {
 		return
@@ -41,6 +42,8 @@ func (m *model) FetchApi() {
 		return
 	}
 
+	m.responseTime = formatDuration(time.Since(start))
+
 	m.statusCode = resp.StatusCode
 	m.status = resp.Status
 	m.output.SetContent(writeJSON(respBody))
@@ -52,4 +55,17 @@ func writeJSON(data []byte) string {
 		return string(data)
 	}
 	return pretty.String()
+}
+
+func formatDuration(d time.Duration) string {
+	switch {
+	case d < time.Microsecond:
+		return d.Round(time.Nanosecond).String()
+	case d < time.Millisecond:
+		return d.Round(time.Microsecond).String()
+	case d < time.Second:
+		return d.Round(time.Millisecond).String()
+	default:
+		return d.Round(time.Millisecond).String()
+	}
 }
