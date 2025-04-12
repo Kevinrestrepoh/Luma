@@ -22,6 +22,18 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 
+	case ApiResponse:
+		if msg.err != nil {
+			m.status = "Error: " + msg.err.Error()
+			m.output.SetContent("")
+		} else {
+			m.statusCode = msg.statusCode
+			m.status = msg.status
+			m.responseTime = msg.duration
+			m.output.SetContent(msg.body)
+		}
+		return m, nil
+
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
@@ -132,8 +144,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "enter":
 			if m.mode == "normal" {
-				go m.FetchApi()
-				return m, nil
+				cmd := FetchApi(m.url.Value(), m.methods[m.selectedMethod].Name, m.body.Value())
+				return m, cmd
 			}
 		}
 	}

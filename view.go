@@ -80,11 +80,11 @@ func (m *model) View() string {
 		m.body.SetHeight(m.height/3 - maxLinesURL)
 
 		m.output.Width = m.width - 2
-		m.output.Height = m.height/2 - 1
+		m.output.Height = m.height/2 - 1 - maxLinesURL/2
 
 		urlView := m.urlStyles.InputField.Width(urlWidth).Render(m.url.View())
 		bodyView := m.bodyStyles.InputField.Width(m.width - 2).Height(m.height/3 - maxLinesURL).Render(m.body.View())
-		outputView := m.outputStyles.InputField.Width(m.width - 2).Height(m.height/2 - 1).Render(m.output.View())
+		outputView := m.outputStyles.InputField.Width(m.width - 2).Height(m.height/2 - 1 - maxLinesURL/2).Render(m.output.View())
 
 		statusAndTime := lipgloss.NewStyle().
 			Width(m.width - 2).

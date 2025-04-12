@@ -35,8 +35,11 @@ type Method struct {
 }
 
 type ApiResponse struct {
-	Status string
-	Body   string
+	statusCode int
+	status     string
+	body       string
+	duration   string
+	err        error
 }
 
 type ApiHeaders struct {
