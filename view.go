@@ -7,7 +7,7 @@ func (m *model) View() string {
 	methodWidth := 8
 	statusWidth := 30
 
-	status := m.status
+	status := truncate(m.status, 30)
 	if m.width < 80 {
 		statusWidth = 26
 		status = truncate(status, 15)

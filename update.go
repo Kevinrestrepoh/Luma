@@ -4,7 +4,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-var lastFocus string
+var lastFocus string = "body"
 
 func (m *model) Init() tea.Cmd {
 	m.body.ShowLineNumbers = false
@@ -25,6 +25,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ApiResponse:
 		if msg.err != nil {
 			m.status = "Error: " + msg.err.Error()
+			m.statusCode = 0
 			m.output.SetContent("")
 		} else {
 			m.statusCode = msg.statusCode
@@ -92,7 +93,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.UpdateStyles()
 					return m, nil
 				}
-				m.focus = "body"
+				if m.focus == "url" {
+					m.focus = lastFocus
+				}
 				m.UpdateStyles()
 				return m, nil
 			case "insert":
@@ -117,6 +120,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.UpdateStyles()
 					return m, nil
 				}
+
+				if m.focus != "url" {
+					lastFocus = m.focus
+				}
 				m.focus = "url"
 				m.UpdateStyles()
 				return m, nil
@@ -129,15 +136,14 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "l", "right":
 			if m.mode == "normal" && horizontal {
-				lastFocus = m.focus
 				m.focus = "output"
 				m.UpdateStyles()
 				return m, nil
 			}
 
 		case "h", "left":
-			if m.mode == "normal" && horizontal && m.focus == "output" {
-				m.focus = lastFocus
+			if m.mode == "normal" && horizontal {
+				m.focus = "body"
 				m.UpdateStyles()
 				return m, nil
 			}
