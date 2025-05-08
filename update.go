@@ -7,7 +7,6 @@ import (
 var lastFocus string = "body"
 
 func (m *model) Init() tea.Cmd {
-	m.body.ShowLineNumbers = false
 	m.UpdateStyles()
 	return nil
 }
@@ -160,8 +159,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.mode == "insert" {
 		if m.focus == "url" {
 			m.url, cmd = m.url.Update(msg)
-		} else {
-			m.body, cmd = m.body.Update(msg)
+		} else if m.focus == "body" {
+			var newBody CustomTextarea
+			newBody, cmd = m.body.Update(msg)
+			m.body = newBody
 		}
 	}
 

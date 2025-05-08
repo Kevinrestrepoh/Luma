@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/lipgloss"
@@ -17,7 +16,7 @@ type model struct {
 	mode  string
 
 	url          textinput.Model
-	body         textarea.Model
+	body         CustomTextarea
 	statusCode   int
 	status       string
 	output       viewport.Model
@@ -57,13 +56,18 @@ func initModel() *model {
 
 	s := InitStyles()
 
+	// Initialize with default dimensions
+	body := NewCustomTextarea()
+	body.SetWidth(80)  // Default width
+	body.SetHeight(20) // Default height
+
 	return &model{
 		focus:          "url",
 		mode:           "normal",
 		methods:        methods,
 		selectedMethod: 0,
 		url:            textinput.New(),
-		body:           textarea.New(),
+		body:           body,
 		output:         viewport.New(0, 0),
 		methodStyles:   s,
 		urlStyles:      s,
