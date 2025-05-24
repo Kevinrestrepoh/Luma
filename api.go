@@ -15,13 +15,11 @@ var sharedClient = &http.Client{
 	Timeout: 10 * time.Second,
 }
 
-func FetchApi(url, method, body string) tea.Cmd {
+func FetchApi(url, method, body string, headers []*RequestHeader) tea.Cmd {
 	return func() tea.Msg {
 		if url == "" {
 			return ApiResponse{err: fmt.Errorf("empty url")}
 		}
-
-		headers := []*ApiHeaders{}
 
 		start := time.Now()
 		req, err := http.NewRequest(method, url, bytes.NewBufferString(body))
@@ -29,6 +27,7 @@ func FetchApi(url, method, body string) tea.Cmd {
 			return ApiResponse{err: err}
 		}
 
+		// Add headers from the request section
 		for _, h := range headers {
 			req.Header.Set(h.Key, h.Value)
 		}

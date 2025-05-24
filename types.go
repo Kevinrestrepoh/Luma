@@ -22,10 +22,20 @@ type model struct {
 	output       viewport.Model
 	responseTime string
 
-	methodStyles *Styles
-	urlStyles    *Styles
-	bodyStyles   *Styles
-	outputStyles *Styles
+	methodStyles  *Styles
+	urlStyles     *Styles
+	outputStyles  *Styles
+	requestStyles *Styles
+
+	// New request section
+	requestSection struct {
+		selectedTab   int
+		tabs          []string
+		params        []*RequestParam
+		headers       []*RequestHeader
+		editingParam  int
+		editingHeader int
+	}
 }
 
 type Method struct {
@@ -44,6 +54,18 @@ type ApiResponse struct {
 type ApiHeaders struct {
 	Key   string
 	Value string
+}
+
+type RequestParam struct {
+	Key    string
+	Value  string
+	Inputs textinput.Model
+}
+
+type RequestHeader struct {
+	Key    string
+	Value  string
+	Inputs textinput.Model
 }
 
 func initModel() *model {
@@ -71,7 +93,40 @@ func initModel() *model {
 		output:         viewport.New(0, 0),
 		methodStyles:   s,
 		urlStyles:      s,
-		bodyStyles:     s,
 		outputStyles:   s,
+		requestStyles:  s,
+		requestSection: struct {
+			selectedTab   int
+			tabs          []string
+			params        []*RequestParam
+			headers       []*RequestHeader
+			editingParam  int
+			editingHeader int
+		}{
+			selectedTab:   0,
+			tabs:          []string{"Body", "Headers", "Params"},
+			params:        []*RequestParam{},
+			headers:       []*RequestHeader{},
+			editingParam:  -1,
+			editingHeader: -1,
+		},
+	}
+}
+
+func newRequestParam() *RequestParam {
+	inputs := textinput.New()
+	inputs.Placeholder = "Key=Value"
+	inputs.Prompt = "> "
+	return &RequestParam{
+		Inputs: inputs,
+	}
+}
+
+func newRequestHeader() *RequestHeader {
+	inputs := textinput.New()
+	inputs.Placeholder = "Key: Value"
+	inputs.Prompt = "> "
+	return &RequestHeader{
+		Inputs: inputs,
 	}
 }

@@ -65,15 +65,15 @@ func (m *model) UpdateStyles() {
 			m.urlStyles = visual
 		} else {
 			m.urlStyles = focus
-			m.bodyStyles = base
+			m.requestStyles = base
 			m.outputStyles = base
 		}
 
-	case "body":
+	case "request":
 		if m.mode == "insert" {
-			m.bodyStyles = visual
+			m.requestStyles = visual
 		} else {
-			m.bodyStyles = focus
+			m.requestStyles = focus
 			m.urlStyles = base
 			m.outputStyles = base
 		}
@@ -83,12 +83,12 @@ func (m *model) UpdateStyles() {
 		} else {
 			m.outputStyles = focus
 			m.urlStyles = base
-			m.bodyStyles = base
+			m.requestStyles = base
 		}
 
 	default:
 		m.urlStyles = base
-		m.bodyStyles = base
+		m.requestStyles = base
 		m.outputStyles = base
 	}
 }
