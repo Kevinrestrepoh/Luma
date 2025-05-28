@@ -224,7 +224,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 
-				cmd := FetchApi(url, m.methods[m.selectedMethod].Name, m.body.Value(), m.requestSection.headers)
+				cmd := FetchApi(url, m.methods[m.selectedMethod].Name, m.body.Value(), headers)
 				return m, cmd
 			} else if m.mode == "insert" && m.focus == "request" {
 				switch m.requestSection.selectedTab {

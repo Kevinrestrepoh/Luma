@@ -15,7 +15,7 @@ var sharedClient = &http.Client{
 	Timeout: 10 * time.Second,
 }
 
-func FetchApi(url, method, body string, headers []*RequestHeader) tea.Cmd {
+func FetchApi(url, method, body string, headers []*ApiHeaders) tea.Cmd {
 	return func() tea.Msg {
 		if url == "" {
 			return ApiResponse{err: fmt.Errorf("empty url")}
