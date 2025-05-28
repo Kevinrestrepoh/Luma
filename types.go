@@ -35,6 +35,8 @@ type model struct {
 		headers       []*RequestHeader
 		editingParam  int
 		editingHeader int
+		paramsView    viewport.Model
+		headersView   viewport.Model
 	}
 }
 
@@ -83,6 +85,9 @@ func initModel() *model {
 	body.SetWidth(80)  // Default width
 	body.SetHeight(20) // Default height
 
+	paramsView := viewport.New(0, 0)
+	headersView := viewport.New(0, 0)
+
 	return &model{
 		focus:          "url",
 		mode:           "normal",
@@ -102,6 +107,8 @@ func initModel() *model {
 			headers       []*RequestHeader
 			editingParam  int
 			editingHeader int
+			paramsView    viewport.Model
+			headersView   viewport.Model
 		}{
 			selectedTab:   0,
 			tabs:          []string{"Body", "Headers", "Params"},
@@ -109,6 +116,8 @@ func initModel() *model {
 			headers:       []*RequestHeader{},
 			editingParam:  -1,
 			editingHeader: -1,
+			paramsView:    paramsView,
+			headersView:   headersView,
 		},
 	}
 }

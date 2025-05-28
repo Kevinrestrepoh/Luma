@@ -15,7 +15,7 @@ func (m *model) View() string {
 
 	urlWidth := m.width - methodWidth - 4 - statusWidth
 
-	if m.width < 50 {
+	if m.width < 60 {
 		urlWidth = m.width - methodWidth - 4
 	}
 
@@ -84,49 +84,51 @@ func (m *model) View() string {
 	case 0: // Body
 		contentView = bodyView
 	case 1: // Headers
-		content := make([]string, len(m.requestSection.headers)+1) // +1 for add button
+		// Set viewport dimensions
+		m.requestSection.headersView.Width = halfWidth - 2
+		m.requestSection.headersView.Height = bodyHeight
+
+		// Build headers content
+		content := make([]string, len(m.requestSection.headers))
 		for i, header := range m.requestSection.headers {
 			if i == m.requestSection.editingHeader {
 				// Show input field when editing
 				content[i] = m.requestStyles.InputField.Width(halfWidth - 4).Render(header.Inputs.View())
 			} else {
 				// Show key-value pair when not editing
-				content[i] = m.requestStyles.InputField.Width(halfWidth - 4).Render(header.Key + ": " + header.Value)
+				content[i] = m.requestStyles.InputField.BorderForeground(PrimaryColor).Width(halfWidth - 4).Render(header.Key + ": " + header.Value)
 			}
 		}
-		// Add button at the end
-		content[len(m.requestSection.headers)] = m.requestStyles.InputField.
-			Width(tabWidth - 2).
-			Align(lipgloss.Center).
-			Render("+ Add Header")
 
-		// Wrap content in a bordered container
+		// Update viewport content
+		m.requestSection.headersView.SetContent(lipgloss.JoinVertical(lipgloss.Top, content...))
 		contentView = m.requestStyles.InputField.
 			Width(halfWidth - 2).
-			Height(len(content)).
-			Render(lipgloss.JoinVertical(lipgloss.Top, content...))
+			Height(bodyHeight).
+			Render(m.requestSection.headersView.View())
 	case 2: // Params
-		content := make([]string, len(m.requestSection.params)+1) // +1 for add button
+		// Set viewport dimensions
+		m.requestSection.paramsView.Width = halfWidth - 2
+		m.requestSection.paramsView.Height = bodyHeight
+
+		// Build params content
+		content := make([]string, len(m.requestSection.params))
 		for i, param := range m.requestSection.params {
 			if i == m.requestSection.editingParam {
 				// Show input field when editing
 				content[i] = m.requestStyles.InputField.Width(halfWidth - 4).Render(param.Inputs.View())
 			} else {
 				// Show key-value pair when not editing
-				content[i] = m.requestStyles.InputField.Width(halfWidth - 4).Render(param.Key + "=" + param.Value)
+				content[i] = m.requestStyles.InputField.BorderForeground(PrimaryColor).Width(halfWidth - 4).Render(param.Key + "=" + param.Value)
 			}
 		}
-		// Add button at the end
-		content[len(m.requestSection.params)] = m.requestStyles.InputField.
-			Width(tabWidth - 2).
-			Align(lipgloss.Center).
-			Render("+ Add Param")
 
-		// Wrap content in a bordered container
+		// Update viewport content
+		m.requestSection.paramsView.SetContent(lipgloss.JoinVertical(lipgloss.Top, content...))
 		contentView = m.requestStyles.InputField.
 			Width(halfWidth - 2).
-			Height(len(content)).
-			Render(lipgloss.JoinVertical(lipgloss.Top, content...))
+			Height(bodyHeight).
+			Render(m.requestSection.paramsView.View())
 	}
 
 	requestSection := lipgloss.JoinVertical(
@@ -135,7 +137,7 @@ func (m *model) View() string {
 		contentView,
 	)
 
-	if m.width >= 50 {
+	if m.width >= 60 {
 		return lipgloss.JoinVertical(lipgloss.Top,
 			top,
 			lipgloss.JoinHorizontal(
@@ -188,49 +190,51 @@ func (m *model) View() string {
 		case 0: // Body
 			contentView = bodyView
 		case 1: // Headers
-			content := make([]string, len(m.requestSection.headers)+1) // +1 for add button
+			// Set viewport dimensions
+			m.requestSection.headersView.Width = m.width - 2
+			m.requestSection.headersView.Height = m.height/3 - maxLinesURL - 3
+
+			// Build headers content
+			content := make([]string, len(m.requestSection.headers))
 			for i, header := range m.requestSection.headers {
 				if i == m.requestSection.editingHeader {
 					// Show input field when editing
 					content[i] = m.requestStyles.InputField.Width(m.width - 4).Render(header.Inputs.View())
 				} else {
 					// Show key-value pair when not editing
-					content[i] = m.requestStyles.InputField.Width(m.width - 4).Render(header.Key + ": " + header.Value)
+					content[i] = m.requestStyles.InputField.BorderForeground(PrimaryColor).Width(m.width - 4).Render(header.Key + ": " + header.Value)
 				}
 			}
-			// Add button at the end
-			content[len(m.requestSection.headers)] = m.requestStyles.InputField.
-				Width(tabWidth - 2).
-				Align(lipgloss.Center).
-				Render("+ Add Header")
 
-			// Wrap content in a bordered container
+			// Update viewport content
+			m.requestSection.headersView.SetContent(lipgloss.JoinVertical(lipgloss.Top, content...))
 			contentView = m.requestStyles.InputField.
 				Width(m.width - 2).
-				Height(len(content)).
-				Render(lipgloss.JoinVertical(lipgloss.Top, content...))
+				Height(m.height/3 - maxLinesURL - 3).
+				Render(m.requestSection.headersView.View())
 		case 2: // Params
-			content := make([]string, len(m.requestSection.params)+1) // +1 for add button
+			// Set viewport dimensions
+			m.requestSection.paramsView.Width = m.width - 2
+			m.requestSection.paramsView.Height = m.height/3 - maxLinesURL - 3
+
+			// Build params content
+			content := make([]string, len(m.requestSection.params))
 			for i, param := range m.requestSection.params {
 				if i == m.requestSection.editingParam {
 					// Show input field when editing
 					content[i] = m.requestStyles.InputField.Width(m.width - 4).Render(param.Inputs.View())
 				} else {
 					// Show key-value pair when not editing
-					content[i] = m.requestStyles.InputField.Width(m.width - 4).Render(param.Key + "=" + param.Value)
+					content[i] = m.requestStyles.InputField.BorderForeground(PrimaryColor).Width(m.width - 4).Render(param.Key + "=" + param.Value)
 				}
 			}
-			// Add button at the end
-			content[len(m.requestSection.params)] = m.requestStyles.InputField.
-				Width(tabWidth - 2).
-				Align(lipgloss.Center).
-				Render("+ Add Param")
 
-			// Wrap content in a bordered container
+			// Update viewport content
+			m.requestSection.paramsView.SetContent(lipgloss.JoinVertical(lipgloss.Top, content...))
 			contentView = m.requestStyles.InputField.
 				Width(m.width - 2).
-				Height(len(content)).
-				Render(lipgloss.JoinVertical(lipgloss.Top, content...))
+				Height(m.height/3 - maxLinesURL - 3).
+				Render(m.requestSection.paramsView.View())
 		}
 
 		requestSection := lipgloss.JoinVertical(

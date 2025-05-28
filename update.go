@@ -50,6 +50,42 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else if m.focus == "request" && m.mode != "insert" {
 				m.requestSection.selectedTab = (m.requestSection.selectedTab + 1) % len(m.requestSection.tabs)
 				return m, nil
+			} else if m.mode == "insert" && m.focus == "request" {
+				switch m.requestSection.selectedTab {
+				case 1: // Headers
+					if m.requestSection.editingHeader >= 0 {
+						header := m.requestSection.headers[m.requestSection.editingHeader]
+						input := header.Inputs.Value()
+						if idx := strings.Index(input, ":"); idx != -1 {
+							header.Key = strings.TrimSpace(input[:idx])
+							header.Value = strings.TrimSpace(input[idx+1:])
+						}
+						m.requestSection.editingHeader++
+						if m.requestSection.editingHeader >= len(m.requestSection.headers) {
+							m.requestSection.editingHeader = 0
+						}
+						m.requestSection.headers[m.requestSection.editingHeader].Inputs.Focus()
+						m.requestSection.headersView.GotoTop()
+						m.requestSection.headersView.LineDown(m.requestSection.editingHeader)
+					}
+				case 2: // Params
+					if m.requestSection.editingParam >= 0 {
+						param := m.requestSection.params[m.requestSection.editingParam]
+						input := param.Inputs.Value()
+						if idx := strings.Index(input, "="); idx != -1 {
+							param.Key = strings.TrimSpace(input[:idx])
+							param.Value = strings.TrimSpace(input[idx+1:])
+						}
+						m.requestSection.editingParam++
+						if m.requestSection.editingParam >= len(m.requestSection.params) {
+							m.requestSection.editingParam = 0
+						}
+						m.requestSection.params[m.requestSection.editingParam].Inputs.Focus()
+						m.requestSection.paramsView.GotoTop()
+						m.requestSection.paramsView.LineDown(m.requestSection.editingParam)
+					}
+				}
+				return m, nil
 			}
 		case "shift+tab":
 			if m.focus == "url" {
@@ -57,6 +93,42 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			} else if m.focus == "request" && m.mode != "insert" {
 				m.requestSection.selectedTab = (m.requestSection.selectedTab - 1 + len(m.requestSection.tabs)) % len(m.requestSection.tabs)
+				return m, nil
+			} else if m.mode == "insert" && m.focus == "request" {
+				switch m.requestSection.selectedTab {
+				case 1: // Headers
+					if m.requestSection.editingHeader >= 0 {
+						header := m.requestSection.headers[m.requestSection.editingHeader]
+						input := header.Inputs.Value()
+						if idx := strings.Index(input, ":"); idx != -1 {
+							header.Key = strings.TrimSpace(input[:idx])
+							header.Value = strings.TrimSpace(input[idx+1:])
+						}
+						m.requestSection.editingHeader--
+						if m.requestSection.editingHeader < 0 {
+							m.requestSection.editingHeader = len(m.requestSection.headers) - 1
+						}
+						m.requestSection.headers[m.requestSection.editingHeader].Inputs.Focus()
+						m.requestSection.headersView.GotoTop()
+						m.requestSection.headersView.LineDown(m.requestSection.editingHeader)
+					}
+				case 2: // Params
+					if m.requestSection.editingParam >= 0 {
+						param := m.requestSection.params[m.requestSection.editingParam]
+						input := param.Inputs.Value()
+						if idx := strings.Index(input, "="); idx != -1 {
+							param.Key = strings.TrimSpace(input[:idx])
+							param.Value = strings.TrimSpace(input[idx+1:])
+						}
+						m.requestSection.editingParam--
+						if m.requestSection.editingParam < 0 {
+							m.requestSection.editingParam = len(m.requestSection.params) - 1
+						}
+						m.requestSection.params[m.requestSection.editingParam].Inputs.Focus()
+						m.requestSection.paramsView.GotoTop()
+						m.requestSection.paramsView.LineDown(m.requestSection.editingParam)
+					}
+				}
 				return m, nil
 			}
 
@@ -76,6 +148,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						if len(m.requestSection.headers) > 0 {
 							m.requestSection.editingHeader = 0
 							m.requestSection.headers[0].Inputs.Focus()
+							m.requestSection.headersView.GotoTop()
 						} else {
 							// Add first header if none exist
 							newHeader := newRequestHeader()
@@ -87,6 +160,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						if len(m.requestSection.params) > 0 {
 							m.requestSection.editingParam = 0
 							m.requestSection.params[0].Inputs.Focus()
+							m.requestSection.paramsView.GotoTop()
 						} else {
 							// Add first param if none exist
 							newParam := newRequestParam()
@@ -167,13 +241,27 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						}
 						m.requestSection.editingHeader++
 						if m.requestSection.editingHeader >= len(m.requestSection.headers) {
-							// Add new header if we're at the end
-							newHeader := newRequestHeader()
-							m.requestSection.headers = append(m.requestSection.headers, newHeader)
-							m.requestSection.editingHeader = len(m.requestSection.headers) - 1
-							newHeader.Inputs.Focus()
+							// Add new header if we're at the end and under limit
+							if len(m.requestSection.headers) < 5 {
+								newHeader := newRequestHeader()
+								m.requestSection.headers = append(m.requestSection.headers, newHeader)
+								m.requestSection.editingHeader = len(m.requestSection.headers) - 1
+								newHeader.Inputs.Focus()
+								// Scroll to the new header
+								m.requestSection.headersView.GotoTop()
+								m.requestSection.headersView.LineDown(m.requestSection.editingHeader)
+							} else {
+								m.requestSection.editingHeader = 0
+								m.requestSection.headers[0].Inputs.Focus()
+								// Scroll to the first header
+								m.requestSection.headersView.GotoTop()
+								m.requestSection.headersView.LineDown(0)
+							}
 						} else {
 							m.requestSection.headers[m.requestSection.editingHeader].Inputs.Focus()
+							// Scroll to the next header
+							m.requestSection.headersView.GotoTop()
+							m.requestSection.headersView.LineDown(m.requestSection.editingHeader)
 						}
 					}
 				case 2: // Params
@@ -187,36 +275,88 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						}
 						m.requestSection.editingParam++
 						if m.requestSection.editingParam >= len(m.requestSection.params) {
-							// Add new param if we're at the end
-							newParam := newRequestParam()
-							m.requestSection.params = append(m.requestSection.params, newParam)
-							m.requestSection.editingParam = len(m.requestSection.params) - 1
-							newParam.Inputs.Focus()
+							// Add new param if we're at the end and under limit
+							if len(m.requestSection.params) < 5 {
+								newParam := newRequestParam()
+								m.requestSection.params = append(m.requestSection.params, newParam)
+								m.requestSection.editingParam = len(m.requestSection.params) - 1
+								newParam.Inputs.Focus()
+								// Scroll to the new param
+								m.requestSection.paramsView.GotoTop()
+								m.requestSection.paramsView.LineDown(m.requestSection.editingParam)
+							} else {
+								m.requestSection.editingParam = 0
+								m.requestSection.params[0].Inputs.Focus()
+								// Scroll to the first param
+								m.requestSection.paramsView.GotoTop()
+								m.requestSection.paramsView.LineDown(0)
+							}
 						} else {
 							m.requestSection.params[m.requestSection.editingParam].Inputs.Focus()
+							// Scroll to the next param
+							m.requestSection.paramsView.GotoTop()
+							m.requestSection.paramsView.LineDown(m.requestSection.editingParam)
 						}
 					}
 				}
 			}
 
-		case "backspace":
-			if m.mode == "normal" && m.focus == "request" {
+		case "alt+backspace":
+			if m.mode == "insert" && m.focus == "request" {
 				switch m.requestSection.selectedTab {
 				case 1: // Headers
-					if len(m.requestSection.headers) > 0 {
-						// Remove last header
-						m.requestSection.headers = m.requestSection.headers[:len(m.requestSection.headers)-1]
-						if m.requestSection.editingHeader >= len(m.requestSection.headers) {
-							m.requestSection.editingHeader = -1
+					if m.requestSection.editingHeader >= 0 {
+						// Delete the current header
+						m.requestSection.headers = append(
+							m.requestSection.headers[:m.requestSection.editingHeader],
+							m.requestSection.headers[m.requestSection.editingHeader+1:]...,
+						)
+
+						// If we still have headers, move to previous one
+						if len(m.requestSection.headers) > 0 {
+							m.requestSection.editingHeader--
+							if m.requestSection.editingHeader < 0 {
+								m.requestSection.editingHeader = 0
+							}
+							m.requestSection.headers[m.requestSection.editingHeader].Inputs.Focus()
+							m.requestSection.headersView.GotoTop()
+							m.requestSection.headersView.LineDown(m.requestSection.editingHeader)
+						} else {
+							// Add a new empty header when the list is empty
+							newHeader := newRequestHeader()
+							m.requestSection.headers = append(m.requestSection.headers, newHeader)
+							m.requestSection.editingHeader = 0
+							newHeader.Inputs.Focus()
 						}
+
+						return m, nil
 					}
 				case 2: // Params
-					if len(m.requestSection.params) > 0 {
-						// Remove last param
-						m.requestSection.params = m.requestSection.params[:len(m.requestSection.params)-1]
-						if m.requestSection.editingParam >= len(m.requestSection.params) {
-							m.requestSection.editingParam = -1
+					if m.requestSection.editingParam >= 0 {
+						// Delete the current param
+						m.requestSection.params = append(
+							m.requestSection.params[:m.requestSection.editingParam],
+							m.requestSection.params[m.requestSection.editingParam+1:]...,
+						)
+
+						// If we still have params, move to previous one
+						if len(m.requestSection.params) > 0 {
+							m.requestSection.editingParam--
+							if m.requestSection.editingParam < 0 {
+								m.requestSection.editingParam = 0
+							}
+							m.requestSection.params[m.requestSection.editingParam].Inputs.Focus()
+							m.requestSection.paramsView.GotoTop()
+							m.requestSection.paramsView.LineDown(m.requestSection.editingParam)
+						} else {
+							// Add a new empty param when the list is empty
+							newParam := newRequestParam()
+							m.requestSection.params = append(m.requestSection.params, newParam)
+							m.requestSection.editingParam = 0
+							newParam.Inputs.Focus()
 						}
+
+						return m, nil
 					}
 				}
 			}
@@ -226,7 +366,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "normal":
 				if !horizontal {
 					switch m.focus {
-					case "body":
+					case "request":
 						m.focus = "output"
 					case "output":
 						m.focus = "url"
@@ -245,39 +385,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.focus == "output" {
 					m.output.LineDown(1)
 					return m, nil
-				} else if m.focus == "request" {
-					switch m.requestSection.selectedTab {
-					case 0: // Body
-						// No special handling needed for body
-					case 1: // Headers
-						if m.requestSection.editingHeader >= 0 {
-							header := m.requestSection.headers[m.requestSection.editingHeader]
-							input := header.Inputs.Value()
-							if idx := strings.Index(input, ":"); idx != -1 {
-								header.Key = strings.TrimSpace(input[:idx])
-								header.Value = strings.TrimSpace(input[idx+1:])
-							}
-							m.requestSection.editingHeader++
-							if m.requestSection.editingHeader >= len(m.requestSection.headers) {
-								m.requestSection.editingHeader = 0
-							}
-							m.requestSection.headers[m.requestSection.editingHeader].Inputs.Focus()
-						}
-					case 2: // Params
-						if m.requestSection.editingParam >= 0 {
-							param := m.requestSection.params[m.requestSection.editingParam]
-							input := param.Inputs.Value()
-							if idx := strings.Index(input, "="); idx != -1 {
-								param.Key = strings.TrimSpace(input[:idx])
-								param.Value = strings.TrimSpace(input[idx+1:])
-							}
-							m.requestSection.editingParam++
-							if m.requestSection.editingParam >= len(m.requestSection.params) {
-								m.requestSection.editingParam = 0
-							}
-							m.requestSection.params[m.requestSection.editingParam].Inputs.Focus()
-						}
-					}
 				}
 			}
 
@@ -286,7 +393,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "normal":
 				if !horizontal {
 					switch m.focus {
-					case "body":
+					case "request":
 						m.focus = "url"
 					case "output":
 						m.focus = "request"
@@ -307,39 +414,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.focus == "output" {
 					m.output.LineUp(1)
 					return m, nil
-				} else if m.focus == "request" {
-					switch m.requestSection.selectedTab {
-					case 0: // Body
-						// No special handling needed for body
-					case 1: // Headers
-						if m.requestSection.editingHeader >= 0 {
-							header := m.requestSection.headers[m.requestSection.editingHeader]
-							input := header.Inputs.Value()
-							if idx := strings.Index(input, ":"); idx != -1 {
-								header.Key = strings.TrimSpace(input[:idx])
-								header.Value = strings.TrimSpace(input[idx+1:])
-							}
-							m.requestSection.editingHeader--
-							if m.requestSection.editingHeader < 0 {
-								m.requestSection.editingHeader = len(m.requestSection.headers) - 1
-							}
-							m.requestSection.headers[m.requestSection.editingHeader].Inputs.Focus()
-						}
-					case 2: // Params
-						if m.requestSection.editingParam >= 0 {
-							param := m.requestSection.params[m.requestSection.editingParam]
-							input := param.Inputs.Value()
-							if idx := strings.Index(input, "="); idx != -1 {
-								param.Key = strings.TrimSpace(input[:idx])
-								param.Value = strings.TrimSpace(input[idx+1:])
-							}
-							m.requestSection.editingParam--
-							if m.requestSection.editingParam < 0 {
-								m.requestSection.editingParam = len(m.requestSection.params) - 1
-							}
-							m.requestSection.params[m.requestSection.editingParam].Inputs.Focus()
-						}
-					}
 				}
 			}
 
@@ -373,11 +447,15 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.requestSection.editingHeader >= 0 {
 					header := m.requestSection.headers[m.requestSection.editingHeader]
 					header.Inputs, cmd = header.Inputs.Update(msg)
+				} else {
+					m.requestSection.headersView, cmd = m.requestSection.headersView.Update(msg)
 				}
 			case 2: // Params
 				if m.requestSection.editingParam >= 0 {
 					param := m.requestSection.params[m.requestSection.editingParam]
 					param.Inputs, cmd = param.Inputs.Update(msg)
+				} else {
+					m.requestSection.paramsView, cmd = m.requestSection.paramsView.Update(msg)
 				}
 			}
 		}
