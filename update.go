@@ -44,14 +44,23 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "tab":
-			if m.focus == "url" {
-				m.selectedMethod = ((m.selectedMethod + 1) % lenMethods)
-				return m, nil
-			} else if m.focus == "request" && m.mode != "insert" {
-				m.requestSection.selectedTab = (m.requestSection.selectedTab + 1) % len(m.requestSection.tabs)
-				return m, nil
+			if m.mode == "normal" {
+				if m.focus == "url" {
+					m.selectedMethod = ((m.selectedMethod + 1) % lenMethods)
+					return m, nil
+				} else if m.focus == "request" {
+					m.requestSection.selectedTab = (m.requestSection.selectedTab + 1) % len(m.requestSection.tabs)
+					return m, nil
+				}
 			} else if m.mode == "insert" && m.focus == "request" {
 				switch m.requestSection.selectedTab {
+				case 0: // Body
+					// Let the textarea handle the tab
+					var newBody CustomTextarea
+					var cmd tea.Cmd
+					newBody, cmd = m.body.Update(msg)
+					m.body = newBody
+					return m, cmd
 				case 1: // Headers
 					if m.requestSection.editingHeader >= 0 {
 						header := m.requestSection.headers[m.requestSection.editingHeader]
@@ -88,14 +97,23 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		case "shift+tab":
-			if m.focus == "url" {
-				m.selectedMethod = (m.selectedMethod - 1 + lenMethods) % lenMethods
-				return m, nil
-			} else if m.focus == "request" && m.mode != "insert" {
-				m.requestSection.selectedTab = (m.requestSection.selectedTab - 1 + len(m.requestSection.tabs)) % len(m.requestSection.tabs)
-				return m, nil
+			if m.mode == "normal" {
+				if m.focus == "url" {
+					m.selectedMethod = (m.selectedMethod - 1 + lenMethods) % lenMethods
+					return m, nil
+				} else if m.focus == "request" {
+					m.requestSection.selectedTab = (m.requestSection.selectedTab - 1 + len(m.requestSection.tabs)) % len(m.requestSection.tabs)
+					return m, nil
+				}
 			} else if m.mode == "insert" && m.focus == "request" {
 				switch m.requestSection.selectedTab {
+				case 0: // Body
+					// Let the textarea handle the shift+tab
+					var newBody CustomTextarea
+					var cmd tea.Cmd
+					newBody, cmd = m.body.Update(msg)
+					m.body = newBody
+					return m, cmd
 				case 1: // Headers
 					if m.requestSection.editingHeader >= 0 {
 						header := m.requestSection.headers[m.requestSection.editingHeader]
@@ -441,8 +459,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch m.requestSection.selectedTab {
 			case 0: // Body
 				var newBody CustomTextarea
+				var cmd tea.Cmd
 				newBody, cmd = m.body.Update(msg)
 				m.body = newBody
+				return m, cmd
 			case 1: // Headers
 				if m.requestSection.editingHeader >= 0 {
 					header := m.requestSection.headers[m.requestSection.editingHeader]

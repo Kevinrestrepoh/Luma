@@ -88,6 +88,21 @@ func initModel() *model {
 	paramsView := viewport.New(0, 0)
 	headersView := viewport.New(0, 0)
 
+	// Initialize default headers
+	defaultHeaders := []*RequestHeader{
+		{
+			Key:   "Content-Type",
+			Value: "application/json",
+			Inputs: func() textinput.Model {
+				input := textinput.New()
+				input.Placeholder = "Key: Value"
+				input.Prompt = "> "
+				input.SetValue("Content-Type: application/json")
+				return input
+			}(),
+		},
+	}
+
 	return &model{
 		focus:          "url",
 		mode:           "normal",
@@ -113,7 +128,7 @@ func initModel() *model {
 			selectedTab:   0,
 			tabs:          []string{"Body", "Headers", "Params"},
 			params:        []*RequestParam{},
-			headers:       []*RequestHeader{},
+			headers:       defaultHeaders,
 			editingParam:  -1,
 			editingHeader: -1,
 			paramsView:    paramsView,

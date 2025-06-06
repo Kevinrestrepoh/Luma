@@ -205,7 +205,7 @@ func (t *CustomTextarea) Update(msg tea.Msg) (CustomTextarea, tea.Cmd) {
 
 		// For other operations, continue with normal processing
 		switch key {
-		case "tab":
+		case "tab", "ctrl+t":
 			// Insert tabulation
 			line := t.content[t.cursor.line]
 			before := line[:t.cursor.column]
@@ -237,7 +237,7 @@ func (t *CustomTextarea) Update(msg tea.Msg) (CustomTextarea, tea.Cmd) {
 			}
 			t.lastOp = "tab"
 
-		case "shift+tab":
+		case "shift+tab", "ctrl+d":
 			// Unindent
 			line := t.content[t.cursor.line]
 			if len(line) > 0 {
