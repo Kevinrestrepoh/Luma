@@ -1,10 +1,18 @@
 package main
 
 import (
+	"bytes"
+	"context"
+
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/lipgloss"
 )
+
+// ProgramSend posts messages from background network goroutines into the active Bubble Tea program.
+// main sets this to tea.Program.Send before Run.
+var ProgramSend func(tea.Msg)
 
 type model struct {
 	width          int
@@ -26,6 +34,17 @@ type model struct {
 	urlStyles     *Styles
 	outputStyles  *Styles
 	requestStyles *Styles
+
+	streamID     int64
+	cancelStream context.CancelFunc
+	streamBuf    bytes.Buffer
+	streamFollow bool // when true, new stream chunks scroll the response viewport to the bottom
+
+	// showStreamControls: live dot + Stop (SSE / WebSocket only); avoids flash on normal HTTP
+	showStreamControls bool
+
+	// outputInteractMode: toggle with i on the result panel; enables scrollbar/mouse scroll and white border
+	outputInteractMode bool
 
 	// New request section
 	requestSection struct {
@@ -51,6 +70,29 @@ type ApiResponse struct {
 	body       string
 	duration   string
 	err        error
+}
+
+type streamResetMsg struct {
+	id int64
+}
+
+type streamHeaderMsg struct {
+	id                 int64
+	statusCode         int
+	status             string
+	ttfb               string
+	showStreamControls bool
+}
+
+type streamDataMsg struct {
+	id    int64
+	chunk string
+}
+
+type streamDoneMsg struct {
+	id       int64
+	duration string
+	err      error
 }
 
 type ApiHeaders struct {

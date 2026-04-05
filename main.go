@@ -7,7 +7,9 @@ import (
 )
 
 func main() {
-	p := tea.NewProgram(initModel(), tea.WithAltScreen())
+	m := initModel()
+	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	ProgramSend = p.Send
 	if _, err := p.Run(); err != nil {
 		os.Exit(1)
 	}

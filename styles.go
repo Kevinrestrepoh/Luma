@@ -86,6 +86,11 @@ func (m *model) UpdateStyles() {
 			m.requestStyles = base
 		}
 
+	case "stop":
+		m.urlStyles = base
+		m.requestStyles = base
+		m.outputStyles = base
+
 	default:
 		m.urlStyles = base
 		m.requestStyles = base
@@ -93,21 +98,28 @@ func (m *model) UpdateStyles() {
 	}
 }
 
-func StatusStyle(code int) lipgloss.Style {
-	var color lipgloss.Color
-
+func statusLineColor(code int) lipgloss.Color {
 	switch {
 	case code >= 200 && code < 300:
-		color = lipgloss.Color("#aaf683")
+		return lipgloss.Color("#aaf683")
 	case code >= 300 && code < 400:
-		color = lipgloss.Color("#ffd97d")
+		return lipgloss.Color("#ffd97d")
 	case code >= 400 && code < 500:
-		color = lipgloss.Color("#ee6055")
+		return lipgloss.Color("#ee6055")
 	case code >= 500:
-		color = lipgloss.Color("#ff5d8f")
+		return lipgloss.Color("#ff5d8f")
 	default:
-		color = lipgloss.Color("#9e9e9e")
+		return lipgloss.Color("#9e9e9e")
 	}
+}
 
-	return lipgloss.NewStyle().Foreground(color).Padding(1)
+// statusInlineStyle is for single-line status rows (aligned with time / Stop).
+func statusInlineStyle(code int) lipgloss.Style {
+	return lipgloss.NewStyle().
+		Foreground(statusLineColor(code)).
+		Padding(0, 1)
+}
+
+func StatusStyle(code int) lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(statusLineColor(code)).Padding(1)
 }

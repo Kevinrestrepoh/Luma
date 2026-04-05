@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -17,11 +19,82 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	lenMethods := len(m.methods)
 
 	horizontal := m.width >= 50
+	wideUI := m.width >= 60
 
 	switch msg := msg.(type) {
+	case nil:
+		return m, nil
+
+	case streamResetMsg:
+		if msg.id != m.streamID {
+			return m, nil
+		}
+		m.streamBuf.Reset()
+		m.streamFollow = true
+		m.outputInteractMode = false
+		m.showStreamControls = false
+		m.output.SetContent("")
+		if m.focus == "stop" {
+			m.assignFocus("url")
+			m.UpdateStyles()
+		}
+		return m, nil
+
+	case streamHeaderMsg:
+		if msg.id != m.streamID {
+			return m, nil
+		}
+		m.statusCode = msg.statusCode
+		m.status = msg.status
+		m.responseTime = msg.ttfb
+		m.showStreamControls = msg.showStreamControls
+		if !m.showStreamControls && m.focus == "stop" {
+			m.assignFocus("url")
+			m.UpdateStyles()
+		}
+		return m, nil
+
+	case streamDataMsg:
+		if msg.id != m.streamID {
+			return m, nil
+		}
+		_, _ = m.streamBuf.WriteString(msg.chunk)
+		m.output.SetContent(sanitizeResponseText(m.streamBuf.String()))
+		if m.streamFollow {
+			m.output.GotoBottom()
+		}
+		return m, nil
+
+	case streamDoneMsg:
+		if msg.id != m.streamID {
+			return m, nil
+		}
+		m.showStreamControls = false
+		if m.cancelStream != nil {
+			m.cancelStream = nil
+		}
+		if m.focus == "stop" {
+			m.assignFocus("url")
+			m.UpdateStyles()
+		}
+		m.responseTime = msg.duration
+		if msg.err != nil && !errors.Is(msg.err, context.Canceled) {
+			m.status = "Error: " + msg.err.Error()
+			m.statusCode = 0
+		}
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+
+	case tea.MouseMsg:
+		if m.outputInteractMode && m.focus == "output" && m.outputScrollable() && m.mouseOverOutput(msg) {
+			var cmd tea.Cmd
+			m.output, cmd = m.output.Update(msg)
+			m.syncStreamFollowToViewport()
+			return m, cmd
+		}
 
 	case ApiResponse:
 		if msg.err != nil {
@@ -32,18 +105,33 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusCode = msg.statusCode
 			m.status = msg.status
 			m.responseTime = msg.duration
-			m.output.SetContent(msg.body)
+			m.output.SetContent(sanitizeResponseText(msg.body))
 		}
 		return m, nil
 
 	case tea.KeyMsg:
+		if msg.String() == "ctrl+x" && m.cancelStream != nil {
+			m.abortStreaming()
+			m.UpdateStyles()
+			return m, nil
+		}
+		if handled, cmd := m.tryOutputScrollKeys(msg); handled {
+			return m, cmd
+		}
 		switch msg.String() {
 		case "ctrl+c", "q":
 			if m.mode == "normal" {
+				if m.cancelStream != nil {
+					m.cancelStream()
+					m.cancelStream = nil
+				}
 				return m, tea.Quit
 			}
 
 		case "tab":
+			if m.mode == "normal" && m.focus == "stop" {
+				return m, nil
+			}
 			if m.mode == "normal" {
 				if m.focus == "url" {
 					m.selectedMethod = ((m.selectedMethod + 1) % lenMethods)
@@ -97,6 +185,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		case "shift+tab":
+			if m.mode == "normal" && m.focus == "stop" {
+				return m, nil
+			}
 			if m.mode == "normal" {
 				if m.focus == "url" {
 					m.selectedMethod = (m.selectedMethod - 1 + lenMethods) % lenMethods
@@ -151,6 +242,14 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "i":
+			if m.focus == "stop" {
+				return m, nil
+			}
+			if m.mode == "normal" && m.focus == "output" {
+				m.outputInteractMode = !m.outputInteractMode
+				m.UpdateStyles()
+				return m, nil
+			}
 			if m.mode == "normal" {
 				m.mode = "insert"
 				switch m.focus {
@@ -187,15 +286,22 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							newParam.Inputs.Focus()
 						}
 					}
-				case "output":
-					m.body.Blur()
-					m.url.Blur()
 				}
 
 				m.UpdateStyles()
 				return m, nil
 			}
 		case "esc":
+			if m.focus == "stop" {
+				m.assignFocus("url")
+				m.UpdateStyles()
+				return m, nil
+			}
+			if m.outputInteractMode {
+				m.outputInteractMode = false
+				m.UpdateStyles()
+				return m, nil
+			}
 			m.mode = "normal"
 			m.url.Blur()
 			m.body.Blur()
@@ -223,6 +329,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "enter":
+			if m.mode == "normal" && m.focus == "stop" && m.showStreamControls && m.cancelStream != nil {
+				m.abortStreaming()
+				m.UpdateStyles()
+				return m, nil
+			}
 			if m.mode == "normal" {
 				// Convert params and headers to API format
 				headers := make([]*ApiHeaders, len(m.requestSection.headers))
@@ -242,7 +353,15 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 
-				cmd := FetchApi(url, m.methods[m.selectedMethod].Name, m.body.Value(), headers)
+				if m.cancelStream != nil {
+					m.cancelStream()
+					m.cancelStream = nil
+				}
+				ctx, cancel := context.WithCancel(context.Background())
+				m.cancelStream = cancel
+				m.streamID++
+
+				cmd := FetchApi(ctx, m.streamID, url, m.methods[m.selectedMethod].Name, m.body.Value(), headers)
 				return m, cmd
 			} else if m.mode == "insert" && m.focus == "request" {
 				switch m.requestSection.selectedTab {
@@ -382,26 +501,46 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "j", "down":
 			switch m.mode {
 			case "normal":
+				if wideUI && m.showStreamControls && m.focus == "stop" {
+					m.assignFocus("output")
+					m.UpdateStyles()
+					return m, nil
+				}
 				if !horizontal {
+					if m.showStreamControls {
+						switch m.focus {
+						case "request":
+							m.assignFocus("stop")
+						case "stop":
+							m.assignFocus("output")
+						case "output":
+							m.assignFocus("url")
+						default:
+							m.assignFocus("request")
+						}
+						m.UpdateStyles()
+						return m, nil
+					}
 					switch m.focus {
 					case "request":
-						m.focus = "output"
+						m.assignFocus("output")
 					case "output":
-						m.focus = "url"
+						m.assignFocus("url")
 					default:
-						m.focus = "request"
+						m.assignFocus("request")
 					}
 					m.UpdateStyles()
 					return m, nil
 				}
 				if m.focus == "url" {
-					m.focus = lastFocus
+					m.assignFocus(lastFocus)
 				}
 				m.UpdateStyles()
 				return m, nil
 			case "insert":
-				if m.focus == "output" {
+				if m.focus == "output" && m.outputInteractMode {
 					m.output.LineDown(1)
+					m.syncStreamFollowToViewport()
 					return m, nil
 				}
 			}
@@ -409,14 +548,40 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "k", "up":
 			switch m.mode {
 			case "normal":
+				if wideUI && m.showStreamControls {
+					if m.focus == "output" {
+						m.assignFocus("stop")
+						m.UpdateStyles()
+						return m, nil
+					}
+					if m.focus == "stop" {
+						m.assignFocus("url")
+						m.UpdateStyles()
+						return m, nil
+					}
+				}
 				if !horizontal {
+					if m.showStreamControls {
+						switch m.focus {
+						case "request":
+							m.assignFocus("url")
+						case "stop":
+							m.assignFocus("request")
+						case "output":
+							m.assignFocus("stop")
+						default:
+							m.assignFocus("output")
+						}
+						m.UpdateStyles()
+						return m, nil
+					}
 					switch m.focus {
 					case "request":
-						m.focus = "url"
+						m.assignFocus("url")
 					case "output":
-						m.focus = "request"
+						m.assignFocus("request")
 					default:
-						m.focus = "output"
+						m.assignFocus("output")
 					}
 					m.UpdateStyles()
 					return m, nil
@@ -425,26 +590,42 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.focus != "url" {
 					lastFocus = m.focus
 				}
-				m.focus = "url"
+				m.assignFocus("url")
 				m.UpdateStyles()
 				return m, nil
 			case "insert":
-				if m.focus == "output" {
+				if m.focus == "output" && m.outputInteractMode {
 					m.output.LineUp(1)
+					m.syncStreamFollowToViewport()
 					return m, nil
 				}
 			}
 
 		case "l", "right":
+			if m.mode == "normal" && wideUI && m.showStreamControls && m.focus == "url" {
+				m.assignFocus("stop")
+				m.UpdateStyles()
+				return m, nil
+			}
+			if m.mode == "normal" && wideUI && m.showStreamControls && m.focus == "stop" {
+				m.assignFocus("output")
+				m.UpdateStyles()
+				return m, nil
+			}
 			if m.mode == "normal" && horizontal {
-				m.focus = "output"
+				m.assignFocus("output")
 				m.UpdateStyles()
 				return m, nil
 			}
 
 		case "h", "left":
+			if m.mode == "normal" && wideUI && m.showStreamControls && m.focus == "stop" {
+				m.assignFocus("url")
+				m.UpdateStyles()
+				return m, nil
+			}
 			if m.mode == "normal" && horizontal {
-				m.focus = "request"
+				m.assignFocus("request")
 				m.UpdateStyles()
 				return m, nil
 			}
@@ -482,4 +663,136 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, cmd
+}
+
+func (m *model) outputScrollable() bool {
+	return m.output.Height > 0 && m.output.TotalLineCount() > m.output.Height
+}
+
+func (m *model) urlBarWidths() (urlWidth int, statusWidth int) {
+	methodWidth := 8
+	statusWidth = 30
+	if m.width < 80 {
+		statusWidth = 26
+	}
+	urlWidth = m.width - methodWidth - 4 - statusWidth
+	if m.width < 60 {
+		urlWidth = m.width - methodWidth - 4
+	}
+	return urlWidth, statusWidth
+}
+
+func (m *model) maxLinesURLCalc(urlWidth int) int {
+	urlText := m.url.Value()
+	if len(urlText) > urlWidth-2 {
+		return (len(urlText) / urlWidth) + 1
+	}
+	return 0
+}
+
+func (m *model) mouseOverOutput(msg tea.MouseMsg) bool {
+	if msg.Action != tea.MouseActionPress {
+		return false
+	}
+	if msg.Button != tea.MouseButtonWheelUp && msg.Button != tea.MouseButtonWheelDown {
+		return false
+	}
+	urlW, _ := m.urlBarWidths()
+	maxLines := m.maxLinesURLCalc(urlW)
+	half := m.width / 2
+
+	if m.width >= 60 {
+		if msg.X <= half {
+			return false
+		}
+		if msg.Y < 2+maxLines {
+			return false
+		}
+		return true
+	}
+	outH := m.height/2 - 2 - maxLines/2
+	if outH < 1 {
+		outH = 1
+	}
+	if msg.Y < m.height-outH {
+		return false
+	}
+	return true
+}
+
+func (m *model) tryOutputScrollKeys(msg tea.KeyMsg) (bool, tea.Cmd) {
+	if m.mode == "normal" && m.focus == "output" && msg.String() == "ctrl+g" {
+		m.streamFollow = true
+		m.output.GotoBottom()
+		return true, nil
+	}
+	if !m.outputScrollable() || !m.outputInteractMode {
+		return false, nil
+	}
+	if m.mode == "insert" && m.focus == "output" {
+		return false, nil
+	}
+	if m.mode != "normal" || m.focus != "output" {
+		return false, nil
+	}
+	switch msg.String() {
+	case "j", "down":
+		m.output.LineDown(1)
+		m.syncStreamFollowToViewport()
+		return true, nil
+	case "k", "up":
+		m.output.LineUp(1)
+		m.syncStreamFollowToViewport()
+		return true, nil
+	case "pgdown", "f":
+		m.output.ViewDown()
+		m.syncStreamFollowToViewport()
+		return true, nil
+	case "pgup", "b":
+		m.output.ViewUp()
+		m.syncStreamFollowToViewport()
+		return true, nil
+	case " ":
+		m.output.ViewDown()
+		m.syncStreamFollowToViewport()
+		return true, nil
+	case "d", "ctrl+d":
+		m.output.HalfViewDown()
+		m.syncStreamFollowToViewport()
+		return true, nil
+	case "u", "ctrl+u":
+		m.output.HalfViewUp()
+		m.syncStreamFollowToViewport()
+		return true, nil
+	default:
+		return false, nil
+	}
+}
+
+func (m *model) assignFocus(f string) {
+	m.focus = f
+	if f != "output" {
+		m.outputInteractMode = false
+	}
+}
+
+func (m *model) syncStreamFollowToViewport() {
+	m.streamFollow = m.output.AtBottom()
+}
+
+func (m *model) abortStreaming() {
+	if m.cancelStream == nil {
+		return
+	}
+	m.cancelStream()
+	m.cancelStream = nil
+	m.streamID++
+	m.streamFollow = false
+	m.outputInteractMode = false
+	m.status = "Stopped"
+	m.statusCode = 0
+	m.showStreamControls = false
+	if m.focus == "stop" {
+		m.assignFocus("url")
+	}
 }
