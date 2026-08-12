@@ -115,6 +115,18 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.UpdateStyles()
 			return m, nil
 		}
+
+		if m.showModal {
+			return m.handleModalKeys(msg)
+		}
+
+		if msg.String() == "m" && m.mode == "normal" {
+			m.saveCurrentWindow()
+			m.showModal = true
+			m.modalSelected = m.currentWindow
+			return m, nil
+		}
+
 		if handled, cmd := m.tryOutputScrollKeys(msg); handled {
 			return m, cmd
 		}
@@ -795,4 +807,43 @@ func (m *model) abortStreaming() {
 	if m.focus == "stop" {
 		m.assignFocus("url")
 	}
+}
+
+func (m *model) handleModalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "m":
+		m.showModal = false
+		return m, nil
+	case "q", "ctrl+c":
+		return m, tea.Quit
+	case "j", "down":
+		if m.modalSelected < len(m.windows)-1 {
+			m.modalSelected++
+		}
+		return m, nil
+	case "k", "up":
+		if m.modalSelected > 0 {
+			m.modalSelected--
+		}
+		return m, nil
+	case "enter":
+		m.loadWindow(m.modalSelected)
+		m.showModal = false
+		m.UpdateStyles()
+		return m, nil
+	case "n":
+		m.newWindow()
+		m.showModal = false
+		m.UpdateStyles()
+		return m, nil
+	case "d":
+		if len(m.windows) > 1 {
+			m.deleteWindow(m.modalSelected)
+			if m.modalSelected >= len(m.windows) {
+				m.modalSelected = len(m.windows) - 1
+			}
+		}
+		return m, nil
+	}
+	return m, nil
 }

@@ -100,6 +100,18 @@ func (t *CustomTextarea) Value() string {
 	return strings.Join(t.content, "\n")
 }
 
+func (t *CustomTextarea) SetValue(s string) {
+	if s == "" {
+		t.content = []string{""}
+	} else {
+		t.content = strings.Split(s, "\n")
+	}
+	t.cursor.line = 0
+	t.cursor.column = 0
+	t.undoStack = nil
+	t.redoStack = nil
+}
+
 func (t *CustomTextarea) View() string {
 	if len(t.content) == 0 {
 		t.content = []string{""}

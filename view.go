@@ -5,7 +5,16 @@ import (
 
 	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/Kevinrestrepoh/Luma/overlay"
 )
+
+type backgroundView struct {
+	view string
+}
+
+func (b backgroundView) View() string {
+	return b.view
+}
 
 func (m *model) View() string {
 	halfWidth := m.width / 2
@@ -181,7 +190,7 @@ func (m *model) View() string {
 	)
 
 	if m.width >= 60 {
-		return lipgloss.JoinVertical(lipgloss.Top,
+		baseView := lipgloss.JoinVertical(lipgloss.Top,
 			top,
 			lipgloss.JoinHorizontal(
 				lipgloss.Left,
@@ -189,6 +198,11 @@ func (m *model) View() string {
 				outputView,
 			),
 		)
+		if m.showModal {
+			modal := NewModal(m.windows, m.modalSelected, m.width, m.height, m.methods)
+			return overlay.Composite(modal.View(), baseView, overlay.Center, overlay.Center, 0, 0)
+		}
+		return baseView
 	} else {
 		m.body.SetWidth(m.width - 2)
 		m.body.SetHeight(m.height/3 - maxLinesURL - 3)
@@ -335,12 +349,18 @@ func (m *model) View() string {
 			requestSection,
 		)
 
-		return lipgloss.JoinVertical(
+		baseView := lipgloss.JoinVertical(
 			lipgloss.Left,
 			inputView,
 			statusAndTime,
 			outputView,
 		)
+
+		if m.showModal {
+			modal := NewModal(m.windows, m.modalSelected, m.width, m.height, m.methods)
+			return overlay.Composite(modal.View(), baseView, overlay.Center, overlay.Center, 0, 0)
+		}
+		return baseView
 	}
 }
 
