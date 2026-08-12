@@ -24,7 +24,7 @@ type model struct {
 	mode  string
 
 	url          textinput.Model
-	body         CustomTextarea
+	body         Textarea
 	statusCode   int
 	status       string
 	output       viewport.Model
@@ -144,7 +144,7 @@ func initModel() *model {
 	s := InitStyles()
 
 	// Initialize with default dimensions
-	body := NewCustomTextarea()
+	body := NewTextarea()
 	body.SetWidth(80)  // Default width
 	body.SetHeight(20) // Default height
 

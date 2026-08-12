@@ -17,7 +17,7 @@ type cursorPos struct {
 	column int
 }
 
-type CustomTextarea struct {
+type Textarea struct {
 	width        int
 	height       int
 	content      []string
@@ -30,14 +30,14 @@ type CustomTextarea struct {
 	scrollOffset int
 }
 
-func NewCustomTextarea() CustomTextarea {
+func NewTextarea() Textarea {
 	initialContent := []string{""}
 	initialState := TextState{
 		content: initialContent,
 		cursor:  cursorPos{0, 0},
 	}
 
-	return CustomTextarea{
+	return Textarea{
 		content:      initialContent,
 		cursor:       cursorPos{0, 0},
 		width:        80,
@@ -50,14 +50,14 @@ func NewCustomTextarea() CustomTextarea {
 	}
 }
 
-func (t *CustomTextarea) SetWidth(w int) {
+func (t *Textarea) SetWidth(w int) {
 	if w <= 0 {
 		w = 80 // Default width
 	}
 	t.width = w
 }
 
-func (t *CustomTextarea) SetHeight(h int) {
+func (t *Textarea) SetHeight(h int) {
 	if h <= 0 {
 		h = 20 // Default height
 	}
@@ -80,19 +80,19 @@ func (t *CustomTextarea) SetHeight(h int) {
 	}
 }
 
-func (t *CustomTextarea) Focus() {
+func (t *Textarea) Focus() {
 	t.focused = true
 }
 
-func (t *CustomTextarea) Blur() {
+func (t *Textarea) Blur() {
 	t.focused = false
 }
 
-func (t *CustomTextarea) Value() string {
+func (t *Textarea) Value() string {
 	return strings.Join(t.content, "\n")
 }
 
-func (t *CustomTextarea) SetValue(s string) {
+func (t *Textarea) SetValue(s string) {
 	if s == "" {
 		t.content = []string{""}
 	} else {
@@ -104,7 +104,7 @@ func (t *CustomTextarea) SetValue(s string) {
 	t.redoStack = nil
 }
 
-func (t *CustomTextarea) View() string {
+func (t *Textarea) View() string {
 	if len(t.content) == 0 {
 		t.content = []string{""}
 	}
@@ -164,7 +164,7 @@ func (t *CustomTextarea) View() string {
 	return strings.Join(visibleLines, "\n")
 }
 
-func (t *CustomTextarea) Update(msg tea.Msg) (CustomTextarea, tea.Cmd) {
+func (t *Textarea) Update(msg tea.Msg) (Textarea, tea.Cmd) {
 	if !t.focused {
 		return *t, nil
 	}
@@ -425,7 +425,7 @@ func (t *CustomTextarea) Update(msg tea.Msg) (CustomTextarea, tea.Cmd) {
 }
 
 // Helper functions for undo/redo
-func (t *CustomTextarea) getCurrentState() TextState {
+func (t *Textarea) getCurrentState() TextState {
 	contentCopy := make([]string, len(t.content))
 	copy(contentCopy, t.content)
 
@@ -438,7 +438,7 @@ func (t *CustomTextarea) getCurrentState() TextState {
 	}
 }
 
-func (t *CustomTextarea) restoreState(state TextState) {
+func (t *Textarea) restoreState(state TextState) {
 	// Restore content
 	t.content = make([]string, len(state.content))
 	copy(t.content, state.content)
@@ -456,7 +456,7 @@ func (t *CustomTextarea) restoreState(state TextState) {
 	}
 }
 
-func (t *CustomTextarea) pushUndo(state TextState) {
+func (t *Textarea) pushUndo(state TextState) {
 	t.undoStack = append(t.undoStack, state)
 	// Keep undo stack at reasonable size
 	if len(t.undoStack) > 100 {
@@ -464,14 +464,14 @@ func (t *CustomTextarea) pushUndo(state TextState) {
 	}
 }
 
-func (t *CustomTextarea) pushRedo(state TextState) {
+func (t *Textarea) pushRedo(state TextState) {
 	t.redoStack = append(t.redoStack, state)
 	if len(t.redoStack) > 100 {
 		t.redoStack = t.redoStack[1:]
 	}
 }
 
-func (t *CustomTextarea) saveState() {
+func (t *Textarea) saveState() {
 	if t.lastOp != "" {
 		t.pushUndo(t.getCurrentState())
 		t.redoStack = nil
@@ -498,7 +498,7 @@ func insertLine(slice []string, index int, line string) []string {
 	return result
 }
 
-func (t *CustomTextarea) insertPairedChar(ch string) {
+func (t *Textarea) insertPairedChar(ch string) {
 	t.saveState()
 	line := t.content[t.cursor.line]
 	before := line[:t.cursor.column]
@@ -508,7 +508,7 @@ func (t *CustomTextarea) insertPairedChar(ch string) {
 	t.lastOp = "insert"
 }
 
-func (t *CustomTextarea) autoCompletePair(open, close string) {
+func (t *Textarea) autoCompletePair(open, close string) {
 	t.saveState()
 	line := t.content[t.cursor.line]
 	before := line[:t.cursor.column]
