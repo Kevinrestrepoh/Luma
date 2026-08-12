@@ -87,24 +87,18 @@ func (m *model) View() string {
 		if lipgloss.Width(rt) > 7 {
 			rt = truncate(rt, 7)
 		}
-		timeCell := lipgloss.NewStyle().
-			Width(timeBlockW).
-			Align(lipgloss.Right).
-			Padding(0).
-			Foreground(ResponseTimeColor).
-			Render(rt)
 		statusRow = lipgloss.JoinHorizontal(
 			lipgloss.Center,
 			statusText,
 			streamingLiveDot(),
 			streamingStopView(m.focus == "stop"),
-			timeCell,
+			renderTimeCell(timeBlockW, rt),
 		)
 	} else {
 		statusRow = lipgloss.JoinHorizontal(
 			lipgloss.Center,
 			statusText,
-			lipgloss.NewStyle().Width(timeBlockW).Align(lipgloss.Center).Padding(0).Foreground(ResponseTimeColor).Render(m.responseTime),
+			renderTimeCell(timeBlockW, m.responseTime),
 		)
 	}
 	statusAndTime := lipgloss.NewStyle().
@@ -120,15 +114,7 @@ func (m *model) View() string {
 
 	// Request section tabs
 	tabWidth := (halfWidth - 2) / len(m.requestSection.tabs)
-	tabs := make([]string, len(m.requestSection.tabs))
-	for i, tab := range m.requestSection.tabs {
-		style := m.requestStyles.InputField.Width(tabWidth - 2).BorderForeground(PrimaryColor)
-		if i == m.requestSection.selectedTab {
-			style = m.requestStyles.InputField.Width(tabWidth - 2)
-		}
-		tabs[i] = style.Render(tab)
-	}
-	tabsView := lipgloss.JoinHorizontal(lipgloss.Top, tabs...)
+	tabsView := m.renderTabs(tabWidth)
 
 	// Request section content
 	var contentView string
@@ -136,51 +122,9 @@ func (m *model) View() string {
 	case 0: // Body
 		contentView = bodyView
 	case 1: // Headers
-		// Set viewport dimensions
-		m.requestSection.headersView.Width = halfWidth - 2
-		m.requestSection.headersView.Height = bodyHeight
-
-		// Build headers content
-		content := make([]string, len(m.requestSection.headers))
-		for i, header := range m.requestSection.headers {
-			if i == m.requestSection.editingHeader {
-				// Show input field when editing
-				content[i] = m.requestStyles.InputField.Width(halfWidth - 4).Render(header.Inputs.View())
-			} else {
-				// Show key-value pair when not editing
-				content[i] = m.requestStyles.InputField.BorderForeground(PrimaryColor).Width(halfWidth - 4).Render(header.Key + ": " + header.Value)
-			}
-		}
-
-		// Update viewport content
-		m.requestSection.headersView.SetContent(lipgloss.JoinVertical(lipgloss.Top, content...))
-		contentView = m.requestStyles.InputField.
-			Width(halfWidth - 2).
-			Height(bodyHeight).
-			Render(m.requestSection.headersView.View())
+		contentView = m.renderHeadersContent(halfWidth-2, bodyHeight)
 	case 2: // Params
-		// Set viewport dimensions
-		m.requestSection.paramsView.Width = halfWidth - 2
-		m.requestSection.paramsView.Height = bodyHeight
-
-		// Build params content
-		content := make([]string, len(m.requestSection.params))
-		for i, param := range m.requestSection.params {
-			if i == m.requestSection.editingParam {
-				// Show input field when editing
-				content[i] = m.requestStyles.InputField.Width(halfWidth - 4).Render(param.Inputs.View())
-			} else {
-				// Show key-value pair when not editing
-				content[i] = m.requestStyles.InputField.BorderForeground(PrimaryColor).Width(halfWidth - 4).Render(param.Key + "=" + param.Value)
-			}
-		}
-
-		// Update viewport content
-		m.requestSection.paramsView.SetContent(lipgloss.JoinVertical(lipgloss.Top, content...))
-		contentView = m.requestStyles.InputField.
-			Width(halfWidth - 2).
-			Height(bodyHeight).
-			Render(m.requestSection.paramsView.View())
+		contentView = m.renderParamsContent(halfWidth-2, bodyHeight)
 	}
 
 	requestSection := lipgloss.JoinVertical(
@@ -247,24 +191,18 @@ func (m *model) View() string {
 			if lipgloss.Width(nrt) > 7 {
 				nrt = truncate(nrt, 7)
 			}
-			nTimeCell := lipgloss.NewStyle().
-				Width(nTimeW).
-				Align(lipgloss.Right).
-				Padding(0).
-				Foreground(ResponseTimeColor).
-				Render(nrt)
 			narrowRow = lipgloss.JoinHorizontal(
 				lipgloss.Center,
 				nStatusText,
 				streamingLiveDot(),
 				streamingStopView(m.focus == "stop"),
-				nTimeCell,
+				renderTimeCell(nTimeW, nrt),
 			)
 		} else {
 			narrowRow = lipgloss.JoinHorizontal(
 				lipgloss.Center,
 				nStatusText,
-				lipgloss.NewStyle().Width(nTimeW).Align(lipgloss.Right).Padding(0).Foreground(ResponseTimeColor).Render(m.responseTime),
+				renderTimeCell(nTimeW, m.responseTime),
 			)
 		}
 
@@ -274,67 +212,18 @@ func (m *model) View() string {
 
 		// Request section tabs for small width
 		tabWidth := (m.width - 2) / len(m.requestSection.tabs)
-		tabs := make([]string, len(m.requestSection.tabs))
-		for i, tab := range m.requestSection.tabs {
-			style := m.requestStyles.InputField.Width(tabWidth - 2).BorderForeground(PrimaryColor)
-			if i == m.requestSection.selectedTab {
-				style = m.requestStyles.InputField.Width(tabWidth - 2)
-			}
-			tabs[i] = style.Render(tab)
-		}
-		tabsView := lipgloss.JoinHorizontal(lipgloss.Top, tabs...)
+		tabsView := m.renderTabs(tabWidth)
 
 		// Request section content for small width
+		narrowContentH := m.height/3 - maxLinesURL - 3
 		var contentView string
 		switch m.requestSection.selectedTab {
 		case 0: // Body
 			contentView = bodyView
 		case 1: // Headers
-			// Set viewport dimensions
-			m.requestSection.headersView.Width = m.width - 2
-			m.requestSection.headersView.Height = m.height/3 - maxLinesURL - 3
-
-			// Build headers content
-			content := make([]string, len(m.requestSection.headers))
-			for i, header := range m.requestSection.headers {
-				if i == m.requestSection.editingHeader {
-					// Show input field when editing
-					content[i] = m.requestStyles.InputField.Width(m.width - 4).Render(header.Inputs.View())
-				} else {
-					// Show key-value pair when not editing
-					content[i] = m.requestStyles.InputField.BorderForeground(PrimaryColor).Width(m.width - 4).Render(header.Key + ": " + header.Value)
-				}
-			}
-
-			// Update viewport content
-			m.requestSection.headersView.SetContent(lipgloss.JoinVertical(lipgloss.Top, content...))
-			contentView = m.requestStyles.InputField.
-				Width(m.width - 2).
-				Height(m.height/3 - maxLinesURL - 3).
-				Render(m.requestSection.headersView.View())
+			contentView = m.renderHeadersContent(m.width-2, narrowContentH)
 		case 2: // Params
-			// Set viewport dimensions
-			m.requestSection.paramsView.Width = m.width - 2
-			m.requestSection.paramsView.Height = m.height/3 - maxLinesURL - 3
-
-			// Build params content
-			content := make([]string, len(m.requestSection.params))
-			for i, param := range m.requestSection.params {
-				if i == m.requestSection.editingParam {
-					// Show input field when editing
-					content[i] = m.requestStyles.InputField.Width(m.width - 4).Render(param.Inputs.View())
-				} else {
-					// Show key-value pair when not editing
-					content[i] = m.requestStyles.InputField.BorderForeground(PrimaryColor).Width(m.width - 4).Render(param.Key + "=" + param.Value)
-				}
-			}
-
-			// Update viewport content
-			m.requestSection.paramsView.SetContent(lipgloss.JoinVertical(lipgloss.Top, content...))
-			contentView = m.requestStyles.InputField.
-				Width(m.width - 2).
-				Height(m.height/3 - maxLinesURL - 3).
-				Render(m.requestSection.paramsView.View())
+			contentView = m.renderParamsContent(m.width-2, narrowContentH)
 		}
 
 		requestSection := lipgloss.JoinVertical(
@@ -372,8 +261,8 @@ func truncate(text string, max int) string {
 }
 
 func scrollBarView(vp viewport.Model, height int, interact bool) string {
-	track := lipgloss.NewStyle().Foreground(lipgloss.Color("#5c5f77"))
-	thumb := lipgloss.NewStyle().Foreground(SecundaryColor)
+	track := lipgloss.NewStyle().Foreground(ScrollTrackColor)
+	thumb := lipgloss.NewStyle().Foreground(SecondaryColor)
 	if !interact {
 		track = track.Faint(true)
 		thumb = thumb.Faint(true)
@@ -417,7 +306,7 @@ func scrollBarView(vp viewport.Model, height int, interact bool) string {
 
 func streamingLiveDot() string {
 	return lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#7fdf8a")).
+		Foreground(LiveDotColor).
 		Padding(0, 1).
 		Render("●")
 }
@@ -430,7 +319,62 @@ func streamingStopView(focused bool) string {
 	if focused {
 		s = s.BorderForeground(TextColor)
 	} else {
-		s = s.BorderForeground(SecundaryColor)
+		s = s.BorderForeground(SecondaryColor)
 	}
 	return s.Render("Stop")
+}
+
+func (m *model) renderTabs(tabWidth int) string {
+	tabs := make([]string, len(m.requestSection.tabs))
+	for i, tab := range m.requestSection.tabs {
+		style := m.requestStyles.InputField.Width(tabWidth - 2).BorderForeground(PrimaryColor)
+		if i == m.requestSection.selectedTab {
+			style = m.requestStyles.InputField.Width(tabWidth - 2)
+		}
+		tabs[i] = style.Render(tab)
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, tabs...)
+}
+
+func (m *model) renderHeadersContent(width, height int) string {
+	m.requestSection.headersView.Width = width
+	m.requestSection.headersView.Height = height
+
+	content := make([]string, len(m.requestSection.headers))
+	for i, header := range m.requestSection.headers {
+		if i == m.requestSection.editingHeader {
+			content[i] = m.requestStyles.InputField.Width(width - 2).Render(header.Inputs.View())
+		} else {
+			content[i] = m.requestStyles.InputField.BorderForeground(PrimaryColor).Width(width - 2).Render(header.Key + ": " + header.Value)
+		}
+	}
+
+	m.requestSection.headersView.SetContent(lipgloss.JoinVertical(lipgloss.Top, content...))
+	return m.requestStyles.InputField.Width(width).Height(height).Render(m.requestSection.headersView.View())
+}
+
+func (m *model) renderParamsContent(width, height int) string {
+	m.requestSection.paramsView.Width = width
+	m.requestSection.paramsView.Height = height
+
+	content := make([]string, len(m.requestSection.params))
+	for i, param := range m.requestSection.params {
+		if i == m.requestSection.editingParam {
+			content[i] = m.requestStyles.InputField.Width(width - 2).Render(param.Inputs.View())
+		} else {
+			content[i] = m.requestStyles.InputField.BorderForeground(PrimaryColor).Width(width - 2).Render(param.Key + "=" + param.Value)
+		}
+	}
+
+	m.requestSection.paramsView.SetContent(lipgloss.JoinVertical(lipgloss.Top, content...))
+	return m.requestStyles.InputField.Width(width).Height(height).Render(m.requestSection.paramsView.View())
+}
+
+func renderTimeCell(width int, text string) string {
+	return lipgloss.NewStyle().
+		Width(width).
+		Align(lipgloss.Right).
+		Padding(0).
+		Foreground(ResponseTimeColor).
+		Render(text)
 }

@@ -7,28 +7,26 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Type definitions
 type TextState struct {
 	content []string
-	cursor  struct {
-		line   int
-		column int
-	}
+	cursor  cursorPos
+}
+
+type cursorPos struct {
+	line   int
+	column int
 }
 
 type CustomTextarea struct {
-	width   int
-	height  int
-	content []string
-	cursor  struct {
-		line   int
-		column int
-	}
+	width        int
+	height       int
+	content      []string
+	cursor       cursorPos
 	focused      bool
 	style        lipgloss.Style
 	undoStack    []TextState
 	redoStack    []TextState
-	lastOp       string // Track last operation to handle consecutive operations
+	lastOp       string
 	scrollOffset int
 }
 
@@ -36,20 +34,14 @@ func NewCustomTextarea() CustomTextarea {
 	initialContent := []string{""}
 	initialState := TextState{
 		content: initialContent,
-		cursor: struct {
-			line   int
-			column int
-		}{0, 0},
+		cursor:  cursorPos{0, 0},
 	}
 
 	return CustomTextarea{
-		content: initialContent,
-		cursor: struct {
-			line   int
-			column int
-		}{0, 0},
-		width:        80, // Default width
-		height:       20, // Default height
+		content:      initialContent,
+		cursor:       cursorPos{0, 0},
+		width:        80,
+		height:       20,
 		style:        lipgloss.NewStyle().Foreground(lipgloss.Color("#000000")).Background(lipgloss.Color("#E4E4E4f")),
 		undoStack:    []TextState{initialState},
 		redoStack:    []TextState{},
@@ -218,32 +210,28 @@ func (t *CustomTextarea) Update(msg tea.Msg) (CustomTextarea, tea.Cmd) {
 		// For other operations, continue with normal processing
 		switch key {
 		case "tab", "ctrl+t":
-			// Insert tabulation
 			line := t.content[t.cursor.line]
 			before := line[:t.cursor.column]
 			after := line[t.cursor.column:]
 
-			// Check if adding tab would exceed width
 			if len(before)+4+len(after) > t.width {
-				// If we're at the start of the line, just add spaces up to width
 				if t.cursor.column == 0 {
 					spaces := min(4, t.width)
-					t.saveState() // Save state before modification
+					t.saveState()
 					t.content[t.cursor.line] = strings.Repeat(" ", spaces) + after
 					t.cursor.column = spaces
 				} else {
-					// Otherwise, wrap the text
 					remainingWidth := t.width - len(before)
 					if remainingWidth > 0 {
 						spaces := min(4, remainingWidth)
-						t.saveState() // Save state before modification
+						t.saveState()
 						t.content[t.cursor.line] = before + strings.Repeat(" ", spaces)
-						t.content = append(t.content[:t.cursor.line+1], append([]string{after}, t.content[t.cursor.line+1:]...)...)
+						t.content = insertLine(t.content, t.cursor.line+1, after)
 						t.cursor.column += spaces
 					}
 				}
 			} else {
-				t.saveState() // Save state before modification
+				t.saveState()
 				t.content[t.cursor.line] = before + "    " + after
 				t.cursor.column += 4
 			}
@@ -317,24 +305,15 @@ func (t *CustomTextarea) Update(msg tea.Msg) (CustomTextarea, tea.Cmd) {
 			// No state saved for cursor movement
 
 		case "enter":
-			// Split line at cursor
 			line := t.content[t.cursor.line]
 			before := line[:t.cursor.column]
 			after := line[t.cursor.column:]
 
-			// Calculate indentation for the new line
-			indent := ""
-			for _, char := range before {
-				if char == ' ' {
-					indent += " "
-				} else {
-					break
-				}
-			}
+			indent := leadingIndent(before)
 
-			t.saveState() // Save state before modification
+			t.saveState()
 			t.content[t.cursor.line] = before
-			t.content = append(t.content[:t.cursor.line+1], append([]string{indent + after}, t.content[t.cursor.line+1:]...)...)
+			t.content = insertLine(t.content, t.cursor.line+1, indent+after)
 			t.cursor.line++
 			t.cursor.column = len(indent)
 			t.lastOp = "enter"
@@ -408,129 +387,28 @@ func (t *CustomTextarea) Update(msg tea.Msg) (CustomTextarea, tea.Cmd) {
 			// No state saved for cursor movement
 
 		case "\"":
-			// Auto-complete quotes
-			t.saveState() // Save state before modification
-			line := t.content[t.cursor.line]
-			before := line[:t.cursor.column]
-			after := line[t.cursor.column:]
-			t.content[t.cursor.line] = before + "\"" + "\"" + after
-			t.cursor.column++
-			t.lastOp = "insert"
-
+			t.insertPairedChar("\"")
 		case "'":
-			// Auto-complete single quotation mark
-			t.saveState() // Save state before modification
-			line := t.content[t.cursor.line]
-			before := line[:t.cursor.column]
-			after := line[t.cursor.column:]
-			t.content[t.cursor.line] = before + "'" + "'" + after
-			t.cursor.column++
-			t.lastOp = "insert"
-
+			t.insertPairedChar("'")
 		case "{":
-			// Auto-complete braces with proper formatting
-			t.saveState() // Save state before modification
-			line := t.content[t.cursor.line]
-			before := line[:t.cursor.column]
-			after := line[t.cursor.column:]
-
-			// Calculate indentation for the new lines
-			indent := ""
-			for _, char := range before {
-				if char == ' ' {
-					indent += " "
-				} else {
-					break
-				}
-			}
-
-			// Check if we have enough space for the new lines
-			if len(t.content) >= t.height-2 {
-				return *t, nil // Don't add more lines if we're at the height limit
-			}
-
-			// Insert opening brace
-			t.content[t.cursor.line] = before + "{" + after
-
-			// Insert empty line with proper indentation
-			newIndent := indent + "    "
-			if len(newIndent) > t.width {
-				newIndent = strings.Repeat(" ", t.width)
-			}
-			t.content = append(t.content[:t.cursor.line+1], append([]string{newIndent}, t.content[t.cursor.line+1:]...)...)
-
-			// Insert closing brace with proper indentation
-			if len(indent) > t.width {
-				indent = strings.Repeat(" ", t.width)
-			}
-			t.content = append(t.content[:t.cursor.line+2], append([]string{indent + "}"}, t.content[t.cursor.line+2:]...)...)
-
-			// Move cursor to the empty line between braces
-			t.cursor.line++
-			t.cursor.column = len(newIndent)
-			t.lastOp = "insert"
-
+			t.autoCompletePair("{", "}")
 		case "[":
-			// Auto-complete bracket with proper formatting
-			t.saveState() // Save state before modification
-			line := t.content[t.cursor.line]
-			before := line[:t.cursor.column]
-			after := line[t.cursor.column:]
-
-			// Calculate indentation for the new lines
-			indent := ""
-			for _, char := range before {
-				if char == ' ' {
-					indent += " "
-				} else {
-					break
-				}
-			}
-
-			// Check if we have enough space for the new lines
-			if len(t.content) >= t.height-2 {
-				return *t, nil // Don't add more lines if we're at the height limit
-			}
-
-			// Insert opening bracket
-			t.content[t.cursor.line] = before + "[" + after
-
-			// Insert empty line with proper indentation
-			newIndent := indent + "    "
-			if len(newIndent) > t.width {
-				newIndent = strings.Repeat(" ", t.width)
-			}
-			t.content = append(t.content[:t.cursor.line+1], append([]string{newIndent}, t.content[t.cursor.line+1:]...)...)
-
-			// Insert closing bracket with proper indentation
-			if len(indent) > t.width {
-				indent = strings.Repeat(" ", t.width)
-			}
-			t.content = append(t.content[:t.cursor.line+2], append([]string{indent + "]"}, t.content[t.cursor.line+2:]...)...)
-
-			// Move cursor to the empty line between brackets
-			t.cursor.line++
-			t.cursor.column = len(newIndent)
-			t.lastOp = "insert"
+			t.autoCompletePair("[", "]")
 
 		default:
-			// Insert character
 			if len(key) == 1 {
-				t.saveState() // Save state before modification
+				t.saveState()
 				line := t.content[t.cursor.line]
 				before := line[:t.cursor.column]
 				after := line[t.cursor.column:]
 
-				// Check if adding character would exceed width
 				if len(before)+1+len(after) > t.width {
-					// If we're at the start of the line, just add the character
 					if t.cursor.column == 0 {
 						t.content[t.cursor.line] = key + after
 						t.cursor.column = 1
 					} else {
-						// Otherwise, wrap the text
 						t.content[t.cursor.line] = before
-						t.content = append(t.content[:t.cursor.line+1], append([]string{key + after}, t.content[t.cursor.line+1:]...)...)
+						t.content = insertLine(t.content, t.cursor.line+1, key+after)
 						t.cursor.line++
 						t.cursor.column = 1
 					}
@@ -548,16 +426,12 @@ func (t *CustomTextarea) Update(msg tea.Msg) (CustomTextarea, tea.Cmd) {
 
 // Helper functions for undo/redo
 func (t *CustomTextarea) getCurrentState() TextState {
-	// Create a deep copy of the current content
 	contentCopy := make([]string, len(t.content))
 	copy(contentCopy, t.content)
 
 	return TextState{
 		content: contentCopy,
-		cursor: struct {
-			line   int
-			column int
-		}{
+		cursor: cursorPos{
 			line:   t.cursor.line,
 			column: t.cursor.column,
 		},
@@ -592,53 +466,75 @@ func (t *CustomTextarea) pushUndo(state TextState) {
 
 func (t *CustomTextarea) pushRedo(state TextState) {
 	t.redoStack = append(t.redoStack, state)
-	// Keep redo stack at reasonable size
 	if len(t.redoStack) > 100 {
 		t.redoStack = t.redoStack[1:]
 	}
 }
 
 func (t *CustomTextarea) saveState() {
-	// Don't save state for consecutive operations of the same type
 	if t.lastOp != "" {
-		// Save the current state to the undo stack
 		t.pushUndo(t.getCurrentState())
-		// Clear redo stack when making a new change
 		t.redoStack = nil
 	}
 }
 
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-// Helper function to ensure content stays within bounds
-func (t *CustomTextarea) ensureBounds() {
-	// Ensure content doesn't exceed height
-	if len(t.content) > t.height {
-		t.content = t.content[:t.height]
-		if t.cursor.line >= t.height {
-			t.cursor.line = t.height - 1
+func leadingIndent(s string) string {
+	indent := ""
+	for _, char := range s {
+		if char == ' ' {
+			indent += " "
+		} else {
+			break
 		}
 	}
+	return indent
+}
 
-	// Ensure each line doesn't exceed width
-	for i, line := range t.content {
-		if len(line) > t.width {
-			t.content[i] = line[:t.width]
-			if i == t.cursor.line && t.cursor.column > t.width {
-				t.cursor.column = t.width
-			}
-		}
+func insertLine(slice []string, index int, line string) []string {
+	result := make([]string, 0, len(slice)+1)
+	result = append(result, slice[:index]...)
+	result = append(result, line)
+	result = append(result, slice[index:]...)
+	return result
+}
+
+func (t *CustomTextarea) insertPairedChar(ch string) {
+	t.saveState()
+	line := t.content[t.cursor.line]
+	before := line[:t.cursor.column]
+	after := line[t.cursor.column:]
+	t.content[t.cursor.line] = before + ch + ch + after
+	t.cursor.column++
+	t.lastOp = "insert"
+}
+
+func (t *CustomTextarea) autoCompletePair(open, close string) {
+	t.saveState()
+	line := t.content[t.cursor.line]
+	before := line[:t.cursor.column]
+	after := line[t.cursor.column:]
+
+	indent := leadingIndent(before)
+
+	if len(t.content) >= t.height-2 {
+		return
 	}
+
+	t.content[t.cursor.line] = before + open + after
+
+	newIndent := indent + "    "
+	if len(newIndent) > t.width {
+		newIndent = strings.Repeat(" ", t.width)
+	}
+	t.content = insertLine(t.content, t.cursor.line+1, newIndent)
+
+	closingIndent := indent
+	if len(closingIndent) > t.width {
+		closingIndent = strings.Repeat(" ", t.width)
+	}
+	t.content = insertLine(t.content, t.cursor.line+2, closingIndent+close)
+
+	t.cursor.line++
+	t.cursor.column = len(newIndent)
+	t.lastOp = "insert"
 }

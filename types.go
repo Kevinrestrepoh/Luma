@@ -202,7 +202,7 @@ func initModel() *model {
 				Method:      0,
 				URL:         "",
 				Body:        "",
-				Headers:     defaultHeaders,
+				Headers:     copyHeaders(defaultHeaders),
 				Params:      []*RequestParam{},
 				SelectedTab: 0,
 			},
@@ -229,6 +229,14 @@ func newRequestHeader() *RequestHeader {
 	return &RequestHeader{
 		Inputs: inputs,
 	}
+}
+
+func copyHeaders(src []*RequestHeader) []*RequestHeader {
+	dst := make([]*RequestHeader, len(src))
+	for i, h := range src {
+		dst[i] = &RequestHeader{Key: h.Key, Value: h.Value}
+	}
+	return dst
 }
 
 func (m *model) saveCurrentWindow() {

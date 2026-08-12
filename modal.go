@@ -87,7 +87,7 @@ func (m *Modal) View() string {
 	}
 
 	help := lipgloss.NewStyle().
-		Foreground(SecundaryColor).
+		Foreground(SecondaryColor).
 		Width(modalW - 4).
 		Align(lipgloss.Center).
 		Render("j/k navigate | n new | d delete | m close")
@@ -102,7 +102,7 @@ func (m *Modal) View() string {
 
 	modal := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(SecundaryColor).
+		BorderForeground(SecondaryColor).
 		Width(modalW).
 		Height(modalH).
 		Render(body)
