@@ -1,4 +1,4 @@
-module github.com/Kevinrestrepoh/Luma
+module github.com/kevinrst/Luma
 
 go 1.24.0
 

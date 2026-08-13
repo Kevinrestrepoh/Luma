@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/charmbracelet/lipgloss"
-	"github.com/Kevinrestrepoh/Luma/overlay"
+	"github.com/kevinrst/Luma/overlay"
 )
 
 type backgroundView struct {
