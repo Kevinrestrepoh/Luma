@@ -20,10 +20,24 @@ func (m *model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleModalKeys(msg)
 	}
 
+	if m.showMenuModal {
+		return m.handleMenuModalKeys(msg)
+	}
+
+	if m.showEnvModal {
+		return m.handleEnvModalKeys(msg)
+	}
+
 	if msg.String() == "m" && m.mode == "normal" {
 		m.saveCurrentWindow()
 		m.showModal = true
 		m.modalSelected = m.currentWindow
+		return m, nil
+	}
+
+	if msg.String() == "p" && m.mode == "normal" {
+		m.showMenuModal = true
+		m.menuSelected = 0
 		return m, nil
 	}
 
@@ -258,14 +272,14 @@ func (m *model) handleEnterKey() (tea.Model, tea.Cmd) {
 			headers[i] = &ApiHeaders{Key: h.Key, Value: h.Value}
 		}
 
-		url := m.url.Value()
+		url := m.resolveEnvVars(m.url.Value())
 		if len(m.requestSection.params) > 0 {
 			url += "?"
 			for i, param := range m.requestSection.params {
 				if i > 0 {
 					url += "&"
 				}
-				url += param.Key + "=" + param.Value
+				url += m.resolveEnvVars(param.Key) + "=" + m.resolveEnvVars(param.Value)
 			}
 		}
 
@@ -277,7 +291,7 @@ func (m *model) handleEnterKey() (tea.Model, tea.Cmd) {
 		m.cancelStream = cancel
 		m.streamID++
 
-		cmd := FetchApi(ctx, m.streamID, url, m.methods[m.selectedMethod].Name, m.body.Value(), headers)
+		cmd := FetchApi(ctx, m.streamID, url, m.methods[m.selectedMethod].Name, m.resolveEnvVars(m.body.Value()), headers)
 		return m, cmd
 	} else if m.mode == "insert" && m.focus == "request" {
 		switch m.requestSection.selectedTab {
@@ -519,6 +533,15 @@ func (m *model) handleInsertModeMsg(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.mode != "insert" {
 		return m, nil
 	}
+
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if keyMsg.String() == "$" && (len(m.envVars) > 0 || len(m.tuiVars) > 0) {
+			m.showEnvModal = true
+			m.envSelected = 0
+			return m, nil
+		}
+	}
+
 	var cmd tea.Cmd
 	switch m.focus {
 	case "url":
@@ -586,6 +609,200 @@ func (m *model) handleModalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	return m, nil
+}
+
+func (m *model) handleMenuModalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		m.showMenuModal = false
+		return m, nil
+	case "j", "down":
+		if m.menuSelected < len([]string{"Env Variables", "Settings"})-1 {
+			m.menuSelected++
+		}
+		return m, nil
+	case "k", "up":
+		if m.menuSelected > 0 {
+			m.menuSelected--
+		}
+		return m, nil
+	case "enter":
+		m.showMenuModal = false
+		if m.menuSelected == 0 {
+			m.showEnvModal = true
+			m.envSelected = 0
+		}
+		return m, nil
+	}
+	return m, nil
+}
+
+func (m *model) handleEnvModalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.creatingEnv {
+		return m.handleEnvCreationKeys(msg)
+	}
+	if m.editingEnv {
+		return m.handleEnvEditKeys(msg)
+	}
+
+	totalVars := len(m.envVars) + len(m.tuiVars)
+	switch msg.String() {
+	case "esc":
+		m.showEnvModal = false
+		return m, nil
+	case "j", "down":
+		if m.envSelected < totalVars-1 {
+			m.envSelected++
+		}
+		return m, nil
+	case "k", "up":
+		if m.envSelected > 0 {
+			m.envSelected--
+		}
+		return m, nil
+	case "enter":
+		if m.envSelected >= 0 && m.envSelected < totalVars {
+			var envVar EnvVar
+			if m.envSelected < len(m.envVars) {
+				envVar = m.envVars[m.envSelected]
+			} else {
+				envVar = m.tuiVars[m.envSelected-len(m.envVars)]
+			}
+			insertion := "$" + envVar.Key
+			m.insertIntoFocus(insertion)
+		}
+		m.showEnvModal = false
+		return m, nil
+	case "n":
+		if len(m.tuiVars) < 10 {
+			m.creatingEnv = true
+			m.envCreatingKey = true
+			m.envKeyInput.SetValue("")
+			m.envKeyInput.Placeholder = "KEY"
+			m.envKeyInput.Focus()
+			m.envValueInput.SetValue("")
+			m.envValueInput.Placeholder = "VALUE"
+		}
+		return m, nil
+	case "e":
+		if m.envSelected >= len(m.envVars) {
+			tuiIdx := m.envSelected - len(m.envVars)
+			m.editingEnv = true
+			m.editingEnvIdx = tuiIdx
+			m.editingKey = true
+			m.envKeyInput.SetValue(m.tuiVars[tuiIdx].Key)
+			m.envKeyInput.Focus()
+			m.envValueInput.SetValue(m.tuiVars[tuiIdx].Value)
+		}
+		return m, nil
+	case "d":
+		if m.envSelected >= len(m.envVars) {
+			tuiIdx := m.envSelected - len(m.envVars)
+			m.tuiVars = append(m.tuiVars[:tuiIdx], m.tuiVars[tuiIdx+1:]...)
+			if m.envSelected >= len(m.envVars)+len(m.tuiVars) {
+				m.envSelected = len(m.envVars) + len(m.tuiVars) - 1
+			}
+		}
+		return m, nil
+	}
+	return m, nil
+}
+
+func (m *model) handleEnvEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		m.editingEnv = false
+		m.envKeyInput.Blur()
+		m.envValueInput.Blur()
+		return m, nil
+	case "enter":
+		if m.editingKey {
+			if m.envKeyInput.Value() == "" {
+				m.editingEnv = false
+				m.envKeyInput.Blur()
+				return m, nil
+			}
+			m.editingKey = false
+			m.envKeyInput.Blur()
+			m.envValueInput.Focus()
+			return m, nil
+		}
+		m.tuiVars[m.editingEnvIdx] = EnvVar{
+			Key:   m.envKeyInput.Value(),
+			Value: m.envValueInput.Value(),
+		}
+		m.editingEnv = false
+		m.envKeyInput.Blur()
+		m.envValueInput.Blur()
+		return m, nil
+	}
+	var cmd tea.Cmd
+	if m.editingKey {
+		m.envKeyInput, cmd = m.envKeyInput.Update(msg)
+	} else {
+		m.envValueInput, cmd = m.envValueInput.Update(msg)
+	}
+	return m, cmd
+}
+
+func (m *model) handleEnvCreationKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		m.creatingEnv = false
+		m.envKeyInput.Blur()
+		m.envValueInput.Blur()
+		return m, nil
+	case "enter":
+		if m.envCreatingKey {
+			if m.envKeyInput.Value() == "" {
+				m.creatingEnv = false
+				m.envKeyInput.Blur()
+				return m, nil
+			}
+			m.envCreatingKey = false
+			m.envKeyInput.Blur()
+			m.envValueInput.Focus()
+			return m, nil
+		}
+		m.tuiVars = append(m.tuiVars, EnvVar{
+			Key:   m.envKeyInput.Value(),
+			Value: m.envValueInput.Value(),
+		})
+		m.envSelected = len(m.envVars) + len(m.tuiVars) - 1
+		m.creatingEnv = false
+		m.envKeyInput.Blur()
+		m.envValueInput.Blur()
+		return m, nil
+	}
+	var cmd tea.Cmd
+	if m.envCreatingKey {
+		m.envKeyInput, cmd = m.envKeyInput.Update(msg)
+	} else {
+		m.envValueInput, cmd = m.envValueInput.Update(msg)
+	}
+	return m, cmd
+}
+
+func (m *model) insertIntoFocus(text string) {
+	switch m.focus {
+	case "url":
+		m.url.SetValue(m.url.Value() + text)
+	case "request":
+		switch m.requestSection.selectedTab {
+		case 0:
+			m.body.SetValue(m.body.Value() + text)
+		case 1:
+			if m.requestSection.editingHeader >= 0 {
+				h := m.requestSection.headers[m.requestSection.editingHeader]
+				h.Inputs.SetValue(h.Inputs.Value() + text)
+			}
+		case 2:
+			if m.requestSection.editingParam >= 0 {
+				p := m.requestSection.params[m.requestSection.editingParam]
+				p.Inputs.SetValue(p.Inputs.Value() + text)
+			}
+		}
+	}
 }
 
 func (m *model) tryOutputScrollKeys(msg tea.KeyMsg) (bool, tea.Cmd) {

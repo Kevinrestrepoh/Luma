@@ -65,6 +65,27 @@ type model struct {
 	// Modal state
 	showModal      bool
 	modalSelected  int
+
+	// Menu modal state
+	showMenuModal   bool
+	menuSelected    int
+
+	// Env modal state
+	showEnvModal   bool
+	envSelected    int
+	envVars        []EnvVar  // read-only from .env files
+	tuiVars        []EnvVar  // user-created, editable
+
+	// Env creation state
+	creatingEnv    bool
+	envKeyInput    textinput.Model
+	envValueInput  textinput.Model
+	envCreatingKey bool // true = editing key, false = editing value
+
+	// Env editing state
+	editingEnv     bool
+	editingEnvIdx  int
+	editingKey     bool // true = editing key, false = editing value
 }
 
 type Method struct {
@@ -210,6 +231,14 @@ func initModel() *model {
 		currentWindow: 0,
 		showModal:     false,
 		modalSelected: 0,
+		showEnvModal:  false,
+		envSelected:   0,
+		envVars:       loadEnvFiles(),
+		tuiVars:       []EnvVar{},
+		creatingEnv:   false,
+		envKeyInput:   textinput.New(),
+		envValueInput: textinput.New(),
+		envCreatingKey: true,
 	}
 }
 

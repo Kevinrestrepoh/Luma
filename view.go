@@ -141,6 +141,14 @@ func (m *model) View() string {
 			modal := NewModal(m.windows, m.modalSelected, m.width, m.height, m.methods)
 			return overlay.Composite(modal.View(), baseView, overlay.Center, overlay.Center, 0, 0)
 		}
+		if m.showMenuModal {
+			menuModal := NewMenuModal(m.menuSelected, m.width, m.height)
+			return overlay.Composite(menuModal.View(), baseView, overlay.Center, overlay.Center, 0, 0)
+		}
+		if m.showEnvModal {
+			envModal := NewEnvModal(m.envVars, m.tuiVars, m.envSelected, m.width, m.height, m.creatingEnv, m.envCreatingKey, m.envKeyInput, m.envValueInput, m.editingEnv, m.editingEnvIdx, m.editingKey)
+			return overlay.Composite(envModal.View(), baseView, overlay.Center, overlay.Center, 0, 0)
+		}
 		return baseView
 	} else {
 		m.body.SetWidth(m.width - 2)
@@ -241,6 +249,14 @@ func (m *model) View() string {
 		if m.showModal {
 			modal := NewModal(m.windows, m.modalSelected, m.width, m.height, m.methods)
 			return overlay.Composite(modal.View(), baseView, overlay.Center, overlay.Center, 0, 0)
+		}
+		if m.showMenuModal {
+			menuModal := NewMenuModal(m.menuSelected, m.width, m.height)
+			return overlay.Composite(menuModal.View(), baseView, overlay.Center, overlay.Center, 0, 0)
+		}
+		if m.showEnvModal {
+			envModal := NewEnvModal(m.envVars, m.tuiVars, m.envSelected, m.width, m.height, m.creatingEnv, m.envCreatingKey, m.envKeyInput, m.envValueInput, m.editingEnv, m.editingEnvIdx, m.editingKey)
+			return overlay.Composite(envModal.View(), baseView, overlay.Center, overlay.Center, 0, 0)
 		}
 		return baseView
 	}
