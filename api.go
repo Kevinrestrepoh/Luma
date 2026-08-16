@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,9 +29,55 @@ func FetchApi(ctx context.Context, streamID int64, url, method, body string, hea
 		if ProgramSend == nil {
 			return ApiResponse{err: fmt.Errorf("program not ready")}
 		}
+		if !hasScheme(url) {
+			if isLocalhost(url) {
+				url = "http://" + url
+			} else {
+				url = "https://" + url
+			}
+		}
 		go runRequestStream(ctx, streamID, url, method, body, headers)
 		return nil
 	}
+}
+
+func isLocalhost(url string) bool {
+	host := strings.ToLower(url)
+	if strings.HasPrefix(host, "localhost") {
+		return true
+	}
+	// Strip port if present
+	if idx := strings.LastIndex(host, ":"); idx != -1 {
+		host = host[:idx]
+	}
+	// IPv6 localhost
+	if host == "[::1]" || host == "::1" {
+		return true
+	}
+	// Private IPs: 10.x, 172.16-31.x, 192.168.x, 127.x, 0.0.0.0
+	parts := strings.Split(host, ".")
+	if len(parts) == 4 {
+		if parts[0] == "10" || parts[0] == "0" || parts[0] == "127" {
+			return true
+		}
+		if parts[0] == "192" && parts[1] == "168" {
+			return true
+		}
+		if parts[0] == "172" {
+			if second, err := strconv.Atoi(parts[1]); err == nil && second >= 16 && second <= 31 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func hasScheme(url string) bool {
+	lower := strings.ToLower(url)
+	return strings.HasPrefix(lower, "http://") ||
+		strings.HasPrefix(lower, "https://") ||
+		strings.HasPrefix(lower, "ws://") ||
+		strings.HasPrefix(lower, "wss://")
 }
 
 func runRequestStream(ctx context.Context, streamID int64, url, method, body string, headers []*ApiHeaders) {
