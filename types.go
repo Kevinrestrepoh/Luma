@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"context"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -59,22 +59,22 @@ type model struct {
 	}
 
 	// Workspace: multiple request windows
-	windows        []*RequestWindow
-	currentWindow  int
+	windows       []*RequestWindow
+	currentWindow int
 
 	// Modal state
-	showModal      bool
-	modalSelected  int
+	showModal     bool
+	modalSelected int
 
 	// Menu modal state
-	showMenuModal   bool
-	menuSelected    int
+	showMenuModal bool
+	menuSelected  int
 
 	// Env modal state
-	showEnvModal   bool
-	envSelected    int
-	envVars        []EnvVar  // read-only from .env files
-	tuiVars        []EnvVar  // user-created, editable
+	showEnvModal bool
+	envSelected  int
+	envVars      []EnvVar // read-only from .env files
+	tuiVars      []EnvVar // user-created, editable
 
 	// Env creation state
 	creatingEnv    bool
@@ -83,9 +83,12 @@ type model struct {
 	envCreatingKey bool // true = editing key, false = editing value
 
 	// Env editing state
-	editingEnv     bool
-	editingEnvIdx  int
-	editingKey     bool // true = editing key, false = editing value
+	editingEnv    bool
+	editingEnvIdx int
+	editingKey    bool // true = editing key, false = editing value
+
+	// Config
+	config Config
 }
 
 type Method struct {
@@ -142,16 +145,16 @@ type RequestHeader struct {
 }
 
 type RequestWindow struct {
-	Method         int
-	URL            string
-	Body           string
-	Headers        []*RequestHeader
-	Params         []*RequestParam
-	SelectedTab    int
-	StatusCode     int
-	Status         string
-	ResponseTime   string
-	OutputContent  string
+	Method        int
+	URL           string
+	Body          string
+	Headers       []*RequestHeader
+	Params        []*RequestParam
+	SelectedTab   int
+	StatusCode    int
+	Status        string
+	ResponseTime  string
+	OutputContent string
 }
 
 func initModel() *model {
@@ -187,7 +190,7 @@ func initModel() *model {
 		},
 	}
 
-	return &model{
+	m := &model{
 		focus:          "url",
 		mode:           "normal",
 		methods:        methods,
@@ -228,18 +231,22 @@ func initModel() *model {
 				SelectedTab: 0,
 			},
 		},
-		currentWindow: 0,
-		showModal:     false,
-		modalSelected: 0,
-		showEnvModal:  false,
-		envSelected:   0,
-		envVars:       loadEnvFiles(),
-		tuiVars:       []EnvVar{},
-		creatingEnv:   false,
-		envKeyInput:   textinput.New(),
-		envValueInput: textinput.New(),
+		currentWindow:  0,
+		showModal:      false,
+		modalSelected:  0,
+		showEnvModal:   false,
+		envSelected:    0,
+		envVars:        loadEnvFiles(),
+		config:         loadConfig(),
+		creatingEnv:    false,
+		envKeyInput:    textinput.New(),
+		envValueInput:  textinput.New(),
 		envCreatingKey: true,
 	}
+
+	m.loadTuiVarsFromConfig()
+	m.loadWindows()
+	return m
 }
 
 func newRequestParam() *RequestParam {
@@ -297,7 +304,6 @@ func (m *model) loadWindow(idx int) {
 	if idx < 0 || idx >= len(m.windows) {
 		return
 	}
-	m.saveCurrentWindow()
 	m.currentWindow = idx
 	w := m.windows[idx]
 
@@ -333,6 +339,7 @@ func (m *model) newWindow() {
 	}
 	m.windows = append(m.windows, w)
 	m.loadWindow(len(m.windows) - 1)
+	m.saveWindows()
 }
 
 func (m *model) deleteWindow(idx int) {
@@ -344,4 +351,5 @@ func (m *model) deleteWindow(idx int) {
 		m.currentWindow = len(m.windows) - 1
 	}
 	m.loadWindow(m.currentWindow)
+	m.saveWindows()
 }

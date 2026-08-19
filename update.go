@@ -74,6 +74,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.status = "Error: " + msg.err.Error()
 			m.statusCode = 0
 		}
+		m.saveCurrentWindow()
 		return m, nil
 
 	case tea.WindowSizeMsg:
@@ -99,6 +100,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.responseTime = msg.duration
 			m.output.SetContent(sanitizeResponseText(msg.body))
 		}
+		m.saveCurrentWindow()
 		return m, nil
 
 	case tea.KeyMsg:

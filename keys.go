@@ -56,6 +56,7 @@ func (m *model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.cancelStream()
 				m.cancelStream = nil
 			}
+			m.saveWindows()
 			return m, tea.Quit
 		}
 
@@ -590,6 +591,7 @@ func (m *model) handleModalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case "enter":
+		m.saveWindows()
 		m.loadWindow(m.modalSelected)
 		m.showModal = false
 		m.UpdateStyles()
@@ -702,6 +704,7 @@ func (m *model) handleEnvModalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if m.envSelected >= len(m.envVars)+len(m.tuiVars) {
 				m.envSelected = len(m.envVars) + len(m.tuiVars) - 1
 			}
+			m.syncTuiVarsToConfig()
 		}
 		return m, nil
 	}
@@ -734,6 +737,7 @@ func (m *model) handleEnvEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.editingEnv = false
 		m.envKeyInput.Blur()
 		m.envValueInput.Blur()
+		m.syncTuiVarsToConfig()
 		return m, nil
 	}
 	var cmd tea.Cmd
@@ -772,6 +776,7 @@ func (m *model) handleEnvCreationKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.creatingEnv = false
 		m.envKeyInput.Blur()
 		m.envValueInput.Blur()
+		m.syncTuiVarsToConfig()
 		return m, nil
 	}
 	var cmd tea.Cmd
