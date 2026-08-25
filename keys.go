@@ -65,7 +65,9 @@ func (m *model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "shift+tab":
 		return m.handleShiftTabKey(msg, lenMethods)
 	case "i":
-		return m.handleInsertKey()
+		if m.mode == "normal" {
+			return m.handleInsertKey()
+		}
 	case "esc":
 		return m.handleEscKey()
 	case "enter":
