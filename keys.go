@@ -620,7 +620,7 @@ func (m *model) handleModalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m *model) handleMenuModalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
-	case "esc":
+	case "esc", "p":
 		m.showMenuModal = false
 		return m, nil
 	case "j", "down":
