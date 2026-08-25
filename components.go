@@ -145,16 +145,22 @@ func (m *model) renderKeybinds() string {
 		parts = []string{"j/k navigate", "↵ select", "esc close"}
 	case m.showEnvModal:
 		if m.creatingEnv || m.editingEnv {
-			parts = []string{"↵nter confirm", "esc cancel"}
+			parts = []string{"↵ confirm", "esc cancel"}
 		} else {
 			parts = []string{"j/k navigate", "↵ select", "n new", "e edit", "d delete", "esc close"}
 		}
 	case m.mode == "insert":
-		parts = []string{"esc normal", "tab switch", "$ env"}
+		if m.focus == "url" {
+			parts = []string{"esc normal", "tab switch", "$ env"}
+		} else {
+			parts = []string{"esc normal", "$ env"}
+		}
 	case m.outputInteractMode:
 		parts = []string{"j/k scroll", "ctrl+g follow", "i/esc normal"}
+	case m.focus == "output":
+		parts = []string{"i inspect", "m windows", "p menu", "↵ send", "q quit"}
 	default:
-		parts = []string{"m windows", "p menu", "i edit", "↵ send", "q quit"}
+		parts = []string{"tab switch", "m windows", "p menu", "i edit", "↵ send", "q quit"}
 	}
 
 	text := strings.Join(parts, " | ")

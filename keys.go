@@ -107,6 +107,9 @@ func (m *model) handleTabKey(msg tea.KeyMsg, lenMethods int) (tea.Model, tea.Cmd
 			m.requestSection.selectedTab = (m.requestSection.selectedTab + 1) % len(m.requestSection.tabs)
 			return m, nil
 		}
+	} else if m.mode == "insert" && m.focus == "url" {
+		m.selectedMethod = ((m.selectedMethod + 1) % lenMethods)
+		return m, nil
 	} else if m.mode == "insert" && m.focus == "request" {
 		switch m.requestSection.selectedTab {
 		case 0:
