@@ -201,7 +201,7 @@ func (m *EnvModal) View() string {
 	if m.creating {
 		totalVars++
 	}
-	modalW := 40
+	modalW := 50
 	modalH := totalVars + 4
 	if len(m.envVars) > 0 {
 		modalH++

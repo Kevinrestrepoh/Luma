@@ -656,9 +656,11 @@ func (m *model) handleEnvModalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	totalVars := len(m.envVars) + len(m.tuiVars)
 	switch msg.String() {
-	case "esc":
+	case "esc", "p":
 		m.showEnvModal = false
 		return m, nil
+	case "q", "ctrl+c":
+		return m, tea.Quit
 	case "j", "down":
 		if m.envSelected < totalVars-1 {
 			m.envSelected++
