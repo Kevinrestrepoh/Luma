@@ -8,6 +8,9 @@ import (
 )
 
 func truncate(text string, max int) string {
+	if max < 4 {
+		return ""
+	}
 	if lipgloss.Width(text) > max {
 		return text[:max-3] + "..."
 	}
@@ -131,4 +134,34 @@ func (m *model) renderParamsContent(width, height int) string {
 
 	m.requestSection.paramsView.SetContent(lipgloss.JoinVertical(lipgloss.Top, content...))
 	return m.requestStyles.InputField.Width(width).Height(height).Render(m.requestSection.paramsView.View())
+}
+
+func (m *model) renderKeybinds() string {
+	var parts []string
+	switch {
+	case m.showModal:
+		parts = []string{"j/k navigate", "n new", "d delete", "↵ select", "m close"}
+	case m.showMenuModal:
+		parts = []string{"j/k navigate", "↵ select", "esc close"}
+	case m.showEnvModal:
+		if m.creatingEnv || m.editingEnv {
+			parts = []string{"↵nter confirm", "esc cancel"}
+		} else {
+			parts = []string{"j/k navigate", "↵ select", "n new", "e edit", "d delete", "esc close"}
+		}
+	case m.mode == "insert":
+		parts = []string{"esc normal", "tab switch", "$ env"}
+	case m.outputInteractMode:
+		parts = []string{"j/k scroll", "ctrl+g follow", "i/esc normal"}
+	default:
+		parts = []string{"m windows", "p menu", "i edit", "↵ send", "q quit"}
+	}
+
+	text := strings.Join(parts, " | ")
+	style := lipgloss.NewStyle().
+		Foreground(SecondaryColor).
+		Width(m.width).
+		Align(lipgloss.Center)
+
+	return style.Render(truncate(text, m.width))
 }

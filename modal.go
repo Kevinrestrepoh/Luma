@@ -26,7 +26,7 @@ func NewMenuModal(selected int, width int, height int) *MenuModal {
 
 func (m *MenuModal) View() string {
 	modalW := 30
-	modalH := len(m.options) + 3
+	modalH := len(m.options)
 	if modalW > m.width-4 {
 		modalW = m.width - 4
 	}
@@ -58,9 +58,7 @@ func (m *MenuModal) View() string {
 	body := lipgloss.NewStyle().
 		Padding(1, 1).
 		Width(modalW - 2).
-		Render(lipgloss.JoinVertical(lipgloss.Top,
-			content.String(),
-		))
+		Render(content.String())
 
 	modal := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
@@ -151,19 +149,10 @@ func (m *Modal) View() string {
 		content.WriteString("\n")
 	}
 
-	help := lipgloss.NewStyle().
-		Foreground(SecondaryColor).
-		Width(modalW - 4).
-		Align(lipgloss.Center).
-		Render("j/k navigate | n new | d delete | m close")
-
 	body := lipgloss.NewStyle().
 		Padding(1, 1).
 		Width(modalW - 2).
-		Render(lipgloss.JoinVertical(lipgloss.Top,
-			content.String(),
-			help,
-		))
+		Render(content.String())
 
 	modal := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
@@ -213,7 +202,7 @@ func (m *EnvModal) View() string {
 		totalVars++
 	}
 	modalW := 40
-	modalH := totalVars + 5
+	modalH := totalVars + 4
 	if len(m.envVars) > 0 {
 		modalH++
 	}
@@ -341,19 +330,10 @@ func (m *EnvModal) View() string {
 		content.WriteString("\n")
 	}
 
-	help := lipgloss.NewStyle().
-		Foreground(SecondaryColor).
-		Width(modalW - 4).
-		Align(lipgloss.Center).
-		Render("j/k navigate | n new | e edit | d delete | esc close")
-
 	body := lipgloss.NewStyle().
 		Padding(1, 1).
 		Width(modalW - 2).
-		Render(lipgloss.JoinVertical(lipgloss.Top,
-			content.String(),
-			help,
-		))
+		Render(content.String())
 
 	modal := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).

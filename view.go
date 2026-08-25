@@ -45,8 +45,8 @@ func (m *model) View() string {
 		maxLinesURL = (len(urlText) / urlWidth) + 1
 	}
 
-	bodyHeight := m.height - 8 - maxLinesURL
-	outputHeight := m.height - 5 - maxLinesURL
+	bodyHeight := m.height - 9 - maxLinesURL
+	outputHeight := m.height - 6 - maxLinesURL
 
 	m.body.SetWidth(halfWidth - 2)
 	m.body.SetHeight(bodyHeight)
@@ -136,6 +136,7 @@ func (m *model) View() string {
 				requestSection,
 				outputView,
 			),
+			m.renderKeybinds(),
 		)
 		if m.showModal {
 			modal := NewModal(m.windows, m.modalSelected, m.width, m.height, m.methods)
@@ -152,9 +153,9 @@ func (m *model) View() string {
 		return baseView
 	} else {
 		m.body.SetWidth(m.width - 2)
-		m.body.SetHeight(m.height/3 - maxLinesURL - 3)
+		m.body.SetHeight(m.height/3 - maxLinesURL - 4)
 
-		narrowOutH := m.height/2 - 2 - maxLinesURL/2
+		narrowOutH := m.height/2 - 3 - maxLinesURL/2
 		narrowOutW := m.width - 2
 		m.output.Height = narrowOutH
 		scrollNarrow := m.output.TotalLineCount() > narrowOutH && narrowOutW > 4
@@ -216,7 +217,7 @@ func (m *model) View() string {
 		tabWidth := (m.width - 2) / len(m.requestSection.tabs)
 		tabsView := m.renderTabs(tabWidth)
 
-		narrowContentH := m.height/3 - maxLinesURL - 3
+		narrowContentH := m.height/3 - maxLinesURL - 4
 		var narrowContentView string
 		switch m.requestSection.selectedTab {
 		case 0:
@@ -244,6 +245,7 @@ func (m *model) View() string {
 			inputView,
 			statusAndTime,
 			outputView,
+			m.renderKeybinds(),
 		)
 
 		if m.showModal {
