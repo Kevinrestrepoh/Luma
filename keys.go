@@ -623,6 +623,8 @@ func (m *model) handleMenuModalKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc", "p":
 		m.showMenuModal = false
 		return m, nil
+	case "q", "ctrl+c":
+		return m, tea.Quit
 	case "j", "down":
 		if m.menuSelected < len([]string{"Env Variables", "Settings"})-1 {
 			m.menuSelected++
