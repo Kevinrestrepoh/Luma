@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"os"
 	"strings"
+	"unicode"
 )
 
 type EnvVar struct {
@@ -62,10 +63,25 @@ func unquote(s string) string {
 	return s
 }
 
+func isIdentChar(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_'
+}
+
 func (m *model) resolveEnvVars(s string) string {
 	vars := append(m.envVars, m.tuiVars...)
 	for _, v := range vars {
-		s = strings.ReplaceAll(s, "$"+v.Key, v.Value)
+		pattern := "$" + v.Key
+		for {
+			idx := strings.Index(s, pattern)
+			if idx == -1 {
+				break
+			}
+			end := idx + len(pattern)
+			if end < len(s) && isIdentChar(rune(s[end])) {
+				break
+			}
+			s = s[:idx] + v.Value + s[end:]
+		}
 	}
 	return s
 }
