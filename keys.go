@@ -72,6 +72,12 @@ func (m *model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleEscKey()
 	case "enter":
 		return m.handleEnterKey()
+	case "f":
+		if m.mode == "normal" && m.focus == "output" && m.outputRaw != "" {
+			m.jsonPretty = !m.jsonPretty
+			m.setOutput(m.outputRaw)
+			return m, nil
+		}
 	case "alt+backspace":
 		return m.handleAltBackspace()
 	case "j", "down":

@@ -23,6 +23,7 @@ func (m *model) load() {
 			Status:        w.Status,
 			ResponseTime:  w.ResponseTime,
 			OutputContent: w.OutputContent,
+			OutputRaw:     w.OutputRaw,
 		}
 		for _, h := range w.Headers {
 			rw.Headers = append(rw.Headers, &RequestHeader{Key: h.Key, Value: h.Value})
@@ -58,6 +59,7 @@ func (m *model) save() {
 			Status:        w.Status,
 			ResponseTime:  w.ResponseTime,
 			OutputContent: w.OutputContent,
+			OutputRaw:     w.OutputRaw,
 		}
 		for _, h := range w.Headers {
 			cw.Headers = append(cw.Headers, config.Header{Key: h.Key, Value: h.Value})

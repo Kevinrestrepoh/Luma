@@ -25,7 +25,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.streamFollow = true
 		m.outputInteractMode = false
 		m.showStreamControls = false
-		m.output.SetContent("")
+		m.setOutput("")
 		if m.focus == "stop" {
 			m.assignFocus("url")
 			m.UpdateStyles()
@@ -51,7 +51,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		_, _ = m.streamBuf.WriteString(msg.chunk)
-		m.output.SetContent(sanitizeResponseText(m.streamBuf.String()))
+		m.setOutput(m.streamBuf.String())
 		if m.streamFollow {
 			m.output.GotoBottom()
 		}
@@ -93,12 +93,12 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.status = "Error: " + msg.err.Error()
 			m.statusCode = 0
-			m.output.SetContent("")
+			m.setOutput("")
 		} else {
 			m.statusCode = msg.statusCode
 			m.status = msg.status
 			m.responseTime = msg.duration
-			m.output.SetContent(sanitizeResponseText(msg.body))
+			m.setOutput(msg.body)
 		}
 		m.saveCurrentWindow()
 		return m, nil

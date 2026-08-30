@@ -47,6 +47,11 @@ type model struct {
 	// outputInteractMode: toggle with i on the result panel; enables scrollbar/mouse scroll and white border
 	outputInteractMode bool
 
+	// outputRaw stores the unsanitized response body for formatting toggles
+	outputRaw string
+	// jsonPretty toggles JSON pretty-print in output
+	jsonPretty bool
+
 	// New request section
 	requestSection struct {
 		selectedTab   int
@@ -156,6 +161,7 @@ type RequestWindow struct {
 	Status        string
 	ResponseTime  string
 	OutputContent string
+	OutputRaw     string
 }
 
 func initModel() *model {
@@ -288,6 +294,7 @@ func (m *model) saveCurrentWindow() {
 	w.Status = m.status
 	w.ResponseTime = m.responseTime
 	w.OutputContent = m.output.View()
+	w.OutputRaw = m.outputRaw
 
 	w.Headers = make([]*RequestHeader, len(m.requestSection.headers))
 	for i, h := range m.requestSection.headers {
@@ -314,7 +321,12 @@ func (m *model) loadWindow(idx int) {
 	m.statusCode = w.StatusCode
 	m.status = w.Status
 	m.responseTime = w.ResponseTime
-	m.output.SetContent(w.OutputContent)
+	m.outputRaw = w.OutputRaw
+	if m.outputRaw != "" {
+		m.setOutput(m.outputRaw)
+	} else {
+		m.setOutput(w.OutputContent)
+	}
 
 	m.requestSection.headers = make([]*RequestHeader, len(w.Headers))
 	for i, h := range w.Headers {

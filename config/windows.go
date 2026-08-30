@@ -21,4 +21,5 @@ type Window struct {
 	Status        string   `toml:"status"`
 	ResponseTime  string   `toml:"response_time"`
 	OutputContent string   `toml:"output_content"`
+	OutputRaw     string   `toml:"output_raw"`
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/viewport"
@@ -158,7 +159,11 @@ func (m *model) renderKeybinds() string {
 	case m.outputInteractMode:
 		parts = []string{"j/k scroll", "ctrl+g follow", "i/esc normal"}
 	case m.focus == "output":
-		parts = []string{"i inspect", "m windows", "p menu", "↵ send", "q quit"}
+		if m.jsonPretty {
+			parts = []string{"f raw", "m windows", "p menu", "i inspect", "↵ send", "q quit"}
+		} else {
+			parts = []string{"f pretty", "m windows", "p menu", "i inspect", "↵ send", "q quit"}
+		}
 	default:
 		parts = []string{"tab switch", "m windows", "p menu", "i edit", "↵ send", "q quit"}
 	}
@@ -170,4 +175,25 @@ func (m *model) renderKeybinds() string {
 		Align(lipgloss.Center)
 
 	return style.Render(truncate(text, m.width))
+}
+
+func (m *model) setOutput(raw string) {
+	m.outputRaw = raw
+	display := raw
+	if m.jsonPretty {
+		display = tryPrettyJSON(raw)
+	}
+	m.output.SetContent(sanitizeResponseText(display))
+}
+
+func tryPrettyJSON(raw string) string {
+	var v interface{}
+	if err := json.Unmarshal([]byte(raw), &v); err != nil {
+		return raw
+	}
+	out, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return raw
+	}
+	return string(out)
 }
