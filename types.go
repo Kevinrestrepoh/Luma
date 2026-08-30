@@ -169,6 +169,7 @@ func initModel() *model {
 		{Name: "GET", Color: lipgloss.Color("#b5e48c")},
 		{Name: "POST", Color: lipgloss.Color("#ffe566")},
 		{Name: "PUT", Color: lipgloss.Color("#8ecae6")},
+		{Name: "PATCH", Color: lipgloss.Color("#cdb4db")},
 		{Name: "DELETE", Color: lipgloss.Color("#ef233c")},
 	}
 
