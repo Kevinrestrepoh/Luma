@@ -919,8 +919,14 @@ func (m *model) handleInteractModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	lines := m.outputLines
 	totalLines := len(lines)
 
+	// clear pending key on any key except 'g'
+	if key != "g" {
+		m.outputPendingKey = ""
+	}
+
 	switch key {
 	case "esc":
+		m.outputPendingKey = ""
 		if m.outputSelectMode != "none" {
 			m.outputSelectMode = "none"
 		} else {
@@ -1282,6 +1288,65 @@ func (m *model) handleInteractModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+u":
 		m.output.HalfViewUp()
 		m.syncStreamFollowToViewport()
+		return m, nil
+
+	case "g":
+		if m.outputPendingKey == "g" {
+			// gg - go to first line
+			m.outputPendingKey = ""
+			m.outputCursorLine = 0
+			m.outputCursorCol = 0
+			m.scrollViewportToCursor()
+			return m, nil
+		}
+		m.outputPendingKey = "g"
+		return m, nil
+
+	case "G":
+		m.outputPendingKey = ""
+		if totalLines > 0 {
+			m.outputCursorLine = totalLines - 1
+			lineLen := lipgloss.Width(lines[m.outputCursorLine])
+			if lineLen > 0 {
+				m.outputCursorCol = lineLen - 1
+			} else {
+				m.outputCursorCol = 0
+			}
+			m.scrollViewportToCursor()
+		}
+		return m, nil
+
+	case "H":
+		// move to top of visible screen
+		m.outputPendingKey = ""
+		m.outputCursorLine = m.output.YOffset
+		m.outputCursorCol = 0
+		m.clampOutputCursor()
+		m.scrollViewportToCursor()
+		return m, nil
+
+	case "M":
+		// move to middle of visible screen
+		m.outputPendingKey = ""
+		vpH := m.output.Height
+		if vpH > 0 {
+			m.outputCursorLine = m.output.YOffset + vpH/2
+		}
+		m.outputCursorCol = 0
+		m.clampOutputCursor()
+		m.scrollViewportToCursor()
+		return m, nil
+
+	case "L":
+		// move to bottom of visible screen
+		m.outputPendingKey = ""
+		vpH := m.output.Height
+		if vpH > 0 {
+			m.outputCursorLine = m.output.YOffset + vpH - 1
+		}
+		m.outputCursorCol = 0
+		m.clampOutputCursor()
+		m.scrollViewportToCursor()
 		return m, nil
 	}
 

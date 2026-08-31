@@ -56,6 +56,9 @@ type model struct {
 	outputSelectAnchorLine int
 	outputSelectAnchorCol  int
 
+	// pending key for multi-key sequences (e.g. "gg")
+	outputPendingKey string
+
 	// outputLines stores the full sanitized content lines for cursor bounds and access
 	outputLines []string
 	// outputRaw stores the unsanitized response body for formatting toggles
