@@ -53,8 +53,8 @@ func (m *model) View() string {
 
 	m.output.Height = outputHeight
 	innerOutW := halfWidth - 2
-	scrollableOut := m.output.TotalLineCount() > outputHeight && innerOutW > 4
-	if scrollableOut {
+	showScrollbar := m.outputInteractMode && m.output.TotalLineCount() > outputHeight && innerOutW > 4
+	if showScrollbar {
 		m.output.Width = innerOutW - 1
 	} else {
 		m.output.Width = innerOutW
@@ -68,8 +68,8 @@ func (m *model) View() string {
 	urlView := m.urlStyles.InputField.Width(urlWidth).Render(m.url.View())
 	bodyView := m.requestStyles.InputField.Width(halfWidth - 2).Height(bodyHeight).Render(m.body.View())
 	outVP := m.renderOutputWithCursor()
-	if scrollableOut {
-		outVP = lipgloss.JoinHorizontal(lipgloss.Top, outVP, scrollBarView(m.output, outputHeight, m.outputInteractMode))
+	if showScrollbar {
+		outVP = lipgloss.JoinHorizontal(lipgloss.Top, outVP, scrollBarView(m.output, outputHeight, true))
 	}
 	outPaneStyle := m.outputStyles.InputField
 	if m.outputInteractMode {
@@ -158,8 +158,8 @@ func (m *model) View() string {
 		narrowOutH := m.height/2 - 3 - maxLinesURL/2
 		narrowOutW := m.width - 2
 		m.output.Height = narrowOutH
-		scrollNarrow := m.output.TotalLineCount() > narrowOutH && narrowOutW > 4
-		if scrollNarrow {
+		showScrollbarNarrow := m.outputInteractMode && m.output.TotalLineCount() > narrowOutH && narrowOutW > 4
+		if showScrollbarNarrow {
 			m.output.Width = narrowOutW - 1
 		} else {
 			m.output.Width = narrowOutW
@@ -168,8 +168,8 @@ func (m *model) View() string {
 		urlView := m.urlStyles.InputField.Width(urlWidth).Render(m.url.View())
 		bodyView := m.requestStyles.InputField.Width(m.width - 2).Height(m.height/3 - maxLinesURL - 3).Render(m.body.View())
 		narrowVP := m.renderOutputWithCursor()
-		if scrollNarrow {
-			narrowVP = lipgloss.JoinHorizontal(lipgloss.Top, narrowVP, scrollBarView(m.output, narrowOutH, m.outputInteractMode))
+		if showScrollbarNarrow {
+			narrowVP = lipgloss.JoinHorizontal(lipgloss.Top, narrowVP, scrollBarView(m.output, narrowOutH, true))
 		}
 		narrowOutStyle := m.outputStyles.InputField
 		if m.outputInteractMode {

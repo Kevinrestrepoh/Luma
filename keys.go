@@ -854,8 +854,8 @@ func (m *model) insertIntoFocus(text string) {
 func (m *model) tryOutputScrollKeys(msg tea.KeyMsg) (bool, tea.Cmd) {
 	if m.mode == "normal" && m.focus == "output" && msg.String() == "ctrl+g" {
 		m.streamFollow = true
-		m.output.GotoBottom()
 		if m.outputInteractMode {
+			m.output.GotoBottom()
 			total := m.output.TotalLineCount()
 			if total > 0 {
 				m.outputCursorLine = total - 1
@@ -872,50 +872,7 @@ func (m *model) tryOutputScrollKeys(msg tea.KeyMsg) (bool, tea.Cmd) {
 		}
 		return true, nil
 	}
-	if m.outputInteractMode {
-		return false, nil
-	}
-	if !m.outputScrollable() {
-		return false, nil
-	}
-	if m.mode == "insert" && m.focus == "output" {
-		return false, nil
-	}
-	if m.mode != "normal" || m.focus != "output" {
-		return false, nil
-	}
-	switch msg.String() {
-	case "j", "down":
-		m.output.LineDown(1)
-		m.syncStreamFollowToViewport()
-		return true, nil
-	case "k", "up":
-		m.output.LineUp(1)
-		m.syncStreamFollowToViewport()
-		return true, nil
-	case "pgdown":
-		m.output.ViewDown()
-		m.syncStreamFollowToViewport()
-		return true, nil
-	case "pgup":
-		m.output.ViewUp()
-		m.syncStreamFollowToViewport()
-		return true, nil
-	case " ":
-		m.output.ViewDown()
-		m.syncStreamFollowToViewport()
-		return true, nil
-	case "ctrl+d":
-		m.output.HalfViewDown()
-		m.syncStreamFollowToViewport()
-		return true, nil
-	case "ctrl+u":
-		m.output.HalfViewUp()
-		m.syncStreamFollowToViewport()
-		return true, nil
-	default:
-		return false, nil
-	}
+	return false, nil
 }
 
 func (m *model) clampOutputCursor() {
