@@ -208,9 +208,10 @@ func tryPrettyJSON(raw string) string {
 var (
 	// Raw ANSI for cursor/selection. Reset restores the TextColor foreground
 	// so the rest of the line keeps its original color after the styled char.
-	cursorANSI    = "\033[48;5;252m\033[38;5;232m"
-	selectionANSI = "\033[48;5;238m\033[38;5;252m"
-	resetForeANSI = "\033[0m\033[38;5;252m"
+	// Using true color (24-bit) to match lipgloss #e5e5e5 exactly.
+	cursorANSI    = "\033[48;2;229;229;229m\033[38;2;26;26;46m"
+	selectionANSI = "\033[48;2;74;78;105m\033[38;2;229;229;229m"
+	resetForeANSI = "\033[0m\033[38;2;229;229;229m"
 )
 
 func (m *model) renderOutputWithCursor() string {
