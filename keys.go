@@ -876,7 +876,7 @@ func (m *model) tryOutputScrollKeys(msg tea.KeyMsg) (bool, tea.Cmd) {
 }
 
 func (m *model) clampOutputCursor() {
-	lines := strings.Split(m.output.View(), "\n")
+	lines := m.outputLines
 	if len(lines) == 0 {
 		m.outputCursorLine = 0
 		m.outputCursorCol = 0
@@ -916,7 +916,7 @@ func (m *model) handleInteractModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	key := msg.String()
-	lines := strings.Split(m.output.View(), "\n")
+	lines := m.outputLines
 	totalLines := len(lines)
 
 	switch key {

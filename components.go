@@ -187,7 +187,9 @@ func (m *model) setOutput(raw string) {
 	if m.jsonPretty {
 		display = tryPrettyJSON(raw)
 	}
-	m.output.SetContent(sanitizeResponseText(display))
+	sanitized := sanitizeResponseText(display)
+	m.outputLines = strings.Split(sanitized, "\n")
+	m.output.SetContent(sanitized)
 	if m.outputInteractMode {
 		m.clampOutputCursor()
 	}
@@ -226,22 +228,24 @@ func (m *model) renderOutputWithCursor() string {
 		return content
 	}
 
-	cursorLine := m.outputCursorLine
+	cursorLine := m.outputCursorLine - m.output.YOffset
 	cursorCol := m.outputCursorCol
 	selectMode := m.outputSelectMode
 
-	anchorLine := m.outputSelectAnchorLine
+	anchorLine := m.outputSelectAnchorLine - m.output.YOffset
 	anchorCol := m.outputSelectAnchorCol
 
-	// Clamp cursor
-	if cursorLine >= totalLines {
-		cursorLine = totalLines - 1
-	}
+	// Clamp cursor to visible viewport
 	if cursorLine < 0 {
 		cursorLine = 0
 	}
+	if cursorLine >= totalLines {
+		cursorLine = totalLines - 1
+	}
 	cursorLineLen := lipgloss.Width(lines[cursorLine])
 	if cursorLineLen == 0 {
+		cursorCol = 0
+	} else if cursorCol < 0 {
 		cursorCol = 0
 	} else if cursorCol >= cursorLineLen {
 		cursorCol = cursorLineLen - 1

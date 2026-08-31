@@ -56,6 +56,8 @@ type model struct {
 	outputSelectAnchorLine int
 	outputSelectAnchorCol  int
 
+	// outputLines stores the full sanitized content lines for cursor bounds and access
+	outputLines []string
 	// outputRaw stores the unsanitized response body for formatting toggles
 	outputRaw string
 	// jsonPretty toggles JSON pretty-print in output
