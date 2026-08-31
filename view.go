@@ -67,7 +67,7 @@ func (m *model) View() string {
 		Render(m.methods[m.selectedMethod].Name)
 	urlView := m.urlStyles.InputField.Width(urlWidth).Render(m.url.View())
 	bodyView := m.requestStyles.InputField.Width(halfWidth - 2).Height(bodyHeight).Render(m.body.View())
-	outVP := m.output.View()
+	outVP := m.renderOutputWithCursor()
 	if scrollableOut {
 		outVP = lipgloss.JoinHorizontal(lipgloss.Top, outVP, scrollBarView(m.output, outputHeight, m.outputInteractMode))
 	}
@@ -167,7 +167,7 @@ func (m *model) View() string {
 
 		urlView := m.urlStyles.InputField.Width(urlWidth).Render(m.url.View())
 		bodyView := m.requestStyles.InputField.Width(m.width - 2).Height(m.height/3 - maxLinesURL - 3).Render(m.body.View())
-		narrowVP := m.output.View()
+		narrowVP := m.renderOutputWithCursor()
 		if scrollNarrow {
 			narrowVP = lipgloss.JoinHorizontal(lipgloss.Top, narrowVP, scrollBarView(m.output, narrowOutH, m.outputInteractMode))
 		}

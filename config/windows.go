@@ -22,4 +22,5 @@ type Window struct {
 	ResponseTime  string   `toml:"response_time"`
 	OutputContent string   `toml:"output_content"`
 	OutputRaw     string   `toml:"output_raw"`
+	JsonPretty    bool     `toml:"json_pretty"`
 }

@@ -47,6 +47,15 @@ type model struct {
 	// outputInteractMode: toggle with i on the result panel; enables scrollbar/mouse scroll and white border
 	outputInteractMode bool
 
+	// output cursor position (absolute line/col in full document)
+	outputCursorLine int
+	outputCursorCol  int
+
+	// visual selection state: "none", "char", "line"
+	outputSelectMode       string
+	outputSelectAnchorLine int
+	outputSelectAnchorCol  int
+
 	// outputRaw stores the unsanitized response body for formatting toggles
 	outputRaw string
 	// jsonPretty toggles JSON pretty-print in output
@@ -162,6 +171,7 @@ type RequestWindow struct {
 	ResponseTime  string
 	OutputContent string
 	OutputRaw     string
+	JsonPretty    bool
 }
 
 func initModel() *model {
@@ -296,6 +306,7 @@ func (m *model) saveCurrentWindow() {
 	w.ResponseTime = m.responseTime
 	w.OutputContent = m.output.View()
 	w.OutputRaw = m.outputRaw
+	w.JsonPretty = m.jsonPretty
 
 	w.Headers = make([]*RequestHeader, len(m.requestSection.headers))
 	for i, h := range m.requestSection.headers {
@@ -323,6 +334,7 @@ func (m *model) loadWindow(idx int) {
 	m.status = w.Status
 	m.responseTime = w.ResponseTime
 	m.outputRaw = w.OutputRaw
+	m.jsonPretty = w.JsonPretty
 	if m.outputRaw != "" {
 		m.setOutput(m.outputRaw)
 	} else {

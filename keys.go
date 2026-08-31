@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"strings"
+	"unicode"
 
+	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 var lastFocus = "request"
@@ -43,6 +46,10 @@ func (m *model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	if handled, cmd := m.tryOutputScrollKeys(msg); handled {
 		return m, cmd
+	}
+
+	if m.outputInteractMode {
+		return m.handleInteractModeKeys(msg)
 	}
 
 	horizontal := m.width >= 50
@@ -202,6 +209,12 @@ func (m *model) handleInsertKey() (tea.Model, tea.Cmd) {
 	}
 	if m.mode == "normal" && m.focus == "output" {
 		m.outputInteractMode = !m.outputInteractMode
+		if m.outputInteractMode {
+			m.outputCursorLine = 0
+			m.outputCursorCol = 0
+			m.outputSelectMode = "none"
+			m.output.GotoTop()
+		}
 		m.UpdateStyles()
 		return m, nil
 	}
@@ -254,6 +267,7 @@ func (m *model) handleEscKey() (tea.Model, tea.Cmd) {
 	}
 	if m.outputInteractMode {
 		m.outputInteractMode = false
+		m.outputSelectMode = "none"
 		m.UpdateStyles()
 		return m, nil
 	}
@@ -402,6 +416,9 @@ func (m *model) handleAltBackspace() (tea.Model, tea.Cmd) {
 }
 
 func (m *model) handleDownKey(horizontal, wideUI bool) (tea.Model, tea.Cmd) {
+	if m.outputInteractMode {
+		return m, nil
+	}
 	switch m.mode {
 	case "normal":
 		if wideUI && m.showStreamControls && m.focus == "stop" {
@@ -451,6 +468,9 @@ func (m *model) handleDownKey(horizontal, wideUI bool) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) handleUpKey(horizontal, wideUI bool) (tea.Model, tea.Cmd) {
+	if m.outputInteractMode {
+		return m, nil
+	}
 	switch m.mode {
 	case "normal":
 		if wideUI && m.showStreamControls {
@@ -509,6 +529,9 @@ func (m *model) handleUpKey(horizontal, wideUI bool) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) handleRightKey(horizontal, wideUI bool) (tea.Model, tea.Cmd) {
+	if m.outputInteractMode {
+		return m, nil
+	}
 	if m.mode == "normal" && wideUI && m.showStreamControls && m.focus == "url" {
 		m.assignFocus("stop")
 		m.UpdateStyles()
@@ -528,6 +551,9 @@ func (m *model) handleRightKey(horizontal, wideUI bool) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) handleLeftKey(horizontal, wideUI bool) (tea.Model, tea.Cmd) {
+	if m.outputInteractMode {
+		return m, nil
+	}
 	if m.mode == "normal" && wideUI && m.showStreamControls && m.focus == "stop" {
 		m.assignFocus("url")
 		m.UpdateStyles()
@@ -829,9 +855,27 @@ func (m *model) tryOutputScrollKeys(msg tea.KeyMsg) (bool, tea.Cmd) {
 	if m.mode == "normal" && m.focus == "output" && msg.String() == "ctrl+g" {
 		m.streamFollow = true
 		m.output.GotoBottom()
+		if m.outputInteractMode {
+			total := m.output.TotalLineCount()
+			if total > 0 {
+				m.outputCursorLine = total - 1
+				vpLines := strings.Split(m.output.View(), "\n")
+				if m.outputCursorLine < len(vpLines) {
+					lineLen := lipgloss.Width(vpLines[m.outputCursorLine])
+					if lineLen > 0 {
+						m.outputCursorCol = lineLen - 1
+					} else {
+						m.outputCursorCol = 0
+					}
+				}
+			}
+		}
 		return true, nil
 	}
-	if !m.outputScrollable() || !m.outputInteractMode {
+	if m.outputInteractMode {
+		return false, nil
+	}
+	if !m.outputScrollable() {
 		return false, nil
 	}
 	if m.mode == "insert" && m.focus == "output" {
@@ -849,11 +893,11 @@ func (m *model) tryOutputScrollKeys(msg tea.KeyMsg) (bool, tea.Cmd) {
 		m.output.LineUp(1)
 		m.syncStreamFollowToViewport()
 		return true, nil
-	case "pgdown", "f":
+	case "pgdown":
 		m.output.ViewDown()
 		m.syncStreamFollowToViewport()
 		return true, nil
-	case "pgup", "b":
+	case "pgup":
 		m.output.ViewUp()
 		m.syncStreamFollowToViewport()
 		return true, nil
@@ -861,17 +905,430 @@ func (m *model) tryOutputScrollKeys(msg tea.KeyMsg) (bool, tea.Cmd) {
 		m.output.ViewDown()
 		m.syncStreamFollowToViewport()
 		return true, nil
-	case "d", "ctrl+d":
+	case "ctrl+d":
 		m.output.HalfViewDown()
 		m.syncStreamFollowToViewport()
 		return true, nil
-	case "u", "ctrl+u":
+	case "ctrl+u":
 		m.output.HalfViewUp()
 		m.syncStreamFollowToViewport()
 		return true, nil
 	default:
 		return false, nil
 	}
+}
+
+func (m *model) clampOutputCursor() {
+	lines := strings.Split(m.output.View(), "\n")
+	if len(lines) == 0 {
+		m.outputCursorLine = 0
+		m.outputCursorCol = 0
+		return
+	}
+	if m.outputCursorLine < 0 {
+		m.outputCursorLine = 0
+	}
+	if m.outputCursorLine >= len(lines) {
+		m.outputCursorLine = len(lines) - 1
+	}
+	lineLen := lipgloss.Width(lines[m.outputCursorLine])
+	if lineLen == 0 {
+		m.outputCursorCol = 0
+	} else if m.outputCursorCol < 0 {
+		m.outputCursorCol = 0
+	} else if m.outputCursorCol >= lineLen {
+		m.outputCursorCol = lineLen - 1
+	}
+}
+
+func (m *model) scrollViewportToCursor() {
+	vpH := m.output.Height
+	if vpH <= 0 {
+		return
+	}
+	if m.outputCursorLine < m.output.YOffset {
+		m.output.YOffset = m.outputCursorLine
+	} else if m.outputCursorLine >= m.output.YOffset+vpH {
+		m.output.YOffset = m.outputCursorLine - vpH + 1
+	}
+}
+
+func (m *model) handleInteractModeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if !m.outputInteractMode {
+		return m, nil
+	}
+
+	key := msg.String()
+	lines := strings.Split(m.output.View(), "\n")
+	totalLines := len(lines)
+
+	switch key {
+	case "esc":
+		if m.outputSelectMode != "none" {
+			m.outputSelectMode = "none"
+		} else {
+			m.outputInteractMode = false
+			m.UpdateStyles()
+		}
+		return m, nil
+
+	case "j", "down":
+		if m.outputCursorLine < totalLines-1 {
+			m.outputCursorLine++
+			m.clampOutputCursor()
+			m.scrollViewportToCursor()
+		}
+		return m, nil
+
+	case "k", "up":
+		if m.outputCursorLine > 0 {
+			m.outputCursorLine--
+			m.clampOutputCursor()
+			m.scrollViewportToCursor()
+		}
+		return m, nil
+
+	case "l", "right":
+		lineLen := lipgloss.Width(lines[m.outputCursorLine])
+		if lineLen > 0 && m.outputCursorCol < lineLen-1 {
+			m.outputCursorCol++
+		} else if m.outputCursorLine < totalLines-1 {
+			m.outputCursorLine++
+			m.outputCursorCol = 0
+			m.clampOutputCursor()
+		}
+		m.scrollViewportToCursor()
+		return m, nil
+
+	case "h", "left":
+		if m.outputCursorCol > 0 {
+			m.outputCursorCol--
+		} else if m.outputCursorLine > 0 {
+			m.outputCursorLine--
+			prevLine := lines[m.outputCursorLine]
+			m.outputCursorCol = max(0, lipgloss.Width(prevLine)-1)
+		}
+		m.scrollViewportToCursor()
+		return m, nil
+
+	case "w":
+		col := m.outputCursorCol
+		line := lines[m.outputCursorLine]
+		runes := []rune(line)
+		if col < len(runes) {
+			if !isWordChar(runes[col]) {
+				for col < len(runes) && !isWordChar(runes[col]) {
+					col++
+				}
+			} else {
+				for col < len(runes) && isWordChar(runes[col]) {
+					col++
+				}
+				for col < len(runes) && !isWordChar(runes[col]) {
+					col++
+				}
+			}
+		}
+		if col >= len(runes) {
+			if m.outputCursorLine < totalLines-1 {
+				m.outputCursorLine++
+				m.outputCursorCol = 0
+			} else {
+				m.outputCursorCol = max(0, lipgloss.Width(line)-1)
+			}
+		} else {
+			m.outputCursorCol = col
+		}
+		m.clampOutputCursor()
+		m.scrollViewportToCursor()
+		return m, nil
+
+	case "W":
+		col := m.outputCursorCol
+		line := lines[m.outputCursorLine]
+		runes := []rune(line)
+		if col < len(runes) {
+			if unicode.IsSpace(runes[col]) {
+				for col < len(runes) && unicode.IsSpace(runes[col]) {
+					col++
+				}
+			} else {
+				for col < len(runes) && !unicode.IsSpace(runes[col]) {
+					col++
+				}
+			}
+		}
+		if col >= len(runes) {
+			if m.outputCursorLine < totalLines-1 {
+				m.outputCursorLine++
+				m.outputCursorCol = 0
+			} else {
+				m.outputCursorCol = max(0, lipgloss.Width(line)-1)
+			}
+		} else {
+			m.outputCursorCol = col
+		}
+		m.clampOutputCursor()
+		m.scrollViewportToCursor()
+		return m, nil
+
+	case "b":
+		col := m.outputCursorCol
+		if col > 0 {
+			line := lines[m.outputCursorLine]
+			runes := []rune(line)
+			if col > len(runes) {
+				col = len(runes)
+			}
+			col--
+			for col > 0 && !isWordChar(runes[col]) {
+				col--
+			}
+			if col > 0 {
+				for col > 0 && isWordChar(runes[col-1]) {
+					col--
+				}
+			}
+			m.outputCursorCol = col
+		} else if m.outputCursorLine > 0 {
+			m.outputCursorLine--
+			prevLine := lines[m.outputCursorLine]
+			prevRunes := []rune(prevLine)
+			m.outputCursorCol = max(0, len(prevRunes)-1)
+			if m.outputCursorCol > 0 {
+				for m.outputCursorCol > 0 && !isWordChar(prevRunes[m.outputCursorCol]) {
+					m.outputCursorCol--
+				}
+				for m.outputCursorCol > 0 && isWordChar(prevRunes[m.outputCursorCol-1]) {
+					m.outputCursorCol--
+				}
+			}
+		}
+		m.clampOutputCursor()
+		m.scrollViewportToCursor()
+		return m, nil
+
+	case "B":
+		col := m.outputCursorCol
+		if col > 0 {
+			line := lines[m.outputCursorLine]
+			runes := []rune(line)
+			if col > len(runes) {
+				col = len(runes)
+			}
+			col--
+			for col > 0 && unicode.IsSpace(runes[col]) {
+				col--
+			}
+			if col > 0 {
+				for col > 0 && !unicode.IsSpace(runes[col-1]) {
+					col--
+				}
+			}
+			m.outputCursorCol = col
+		} else if m.outputCursorLine > 0 {
+			m.outputCursorLine--
+			prevLine := lines[m.outputCursorLine]
+			prevRunes := []rune(prevLine)
+			m.outputCursorCol = max(0, len(prevRunes)-1)
+			if m.outputCursorCol > 0 {
+				for m.outputCursorCol > 0 && unicode.IsSpace(prevRunes[m.outputCursorCol]) {
+					m.outputCursorCol--
+				}
+				for m.outputCursorCol > 0 && !unicode.IsSpace(prevRunes[m.outputCursorCol-1]) {
+					m.outputCursorCol--
+				}
+			}
+		}
+		m.clampOutputCursor()
+		m.scrollViewportToCursor()
+		return m, nil
+
+	case "e":
+		line := lines[m.outputCursorLine]
+		runes := []rune(line)
+		col := m.outputCursorCol
+		if col < len(runes)-1 {
+			col++
+			for col < len(runes)-1 && !isWordChar(runes[col]) {
+				col++
+			}
+			for col < len(runes)-1 && isWordChar(runes[col+1]) {
+				col++
+			}
+			m.outputCursorCol = col
+		} else if m.outputCursorLine < totalLines-1 {
+			m.outputCursorLine++
+			nextLine := lines[m.outputCursorLine]
+			nextRunes := []rune(nextLine)
+			col = 0
+			for col < len(nextRunes)-1 && !isWordChar(nextRunes[col]) {
+				col++
+			}
+			for col < len(nextRunes)-1 && isWordChar(nextRunes[col+1]) {
+				col++
+			}
+			m.outputCursorCol = col
+			m.clampOutputCursor()
+		}
+		m.scrollViewportToCursor()
+		return m, nil
+
+	case "E":
+		line := lines[m.outputCursorLine]
+		runes := []rune(line)
+		col := m.outputCursorCol
+		if col < len(runes)-1 {
+			col++
+			for col < len(runes)-1 && unicode.IsSpace(runes[col]) {
+				col++
+			}
+			for col < len(runes)-1 && !unicode.IsSpace(runes[col+1]) {
+				col++
+			}
+			m.outputCursorCol = col
+		} else if m.outputCursorLine < totalLines-1 {
+			m.outputCursorLine++
+			nextLine := lines[m.outputCursorLine]
+			nextRunes := []rune(nextLine)
+			col = 0
+			for col < len(nextRunes)-1 && unicode.IsSpace(nextRunes[col]) {
+				col++
+			}
+			for col < len(nextRunes)-1 && !unicode.IsSpace(nextRunes[col+1]) {
+				col++
+			}
+			m.outputCursorCol = col
+			m.clampOutputCursor()
+		}
+		m.scrollViewportToCursor()
+		return m, nil
+
+	case "0":
+		m.outputCursorCol = 0
+		return m, nil
+
+	case "$":
+		line := lines[m.outputCursorLine]
+		lineLen := lipgloss.Width(line)
+		if lineLen > 0 {
+			m.outputCursorCol = lineLen - 1
+		}
+		return m, nil
+
+	case "v":
+		if m.outputSelectMode == "char" {
+			m.outputSelectMode = "none"
+		} else {
+			m.outputSelectMode = "char"
+			m.outputSelectAnchorLine = m.outputCursorLine
+			m.outputSelectAnchorCol = m.outputCursorCol
+		}
+		return m, nil
+
+	case "V":
+		if m.outputSelectMode == "line" {
+			m.outputSelectMode = "none"
+		} else {
+			m.outputSelectMode = "line"
+			m.outputSelectAnchorLine = m.outputCursorLine
+			m.outputSelectAnchorCol = 0
+		}
+		return m, nil
+
+	case "y":
+		if m.outputSelectMode == "char" {
+			startLine := min(m.outputSelectAnchorLine, m.outputCursorLine)
+			startCol := m.outputSelectAnchorCol
+			endLine := max(m.outputSelectAnchorLine, m.outputCursorLine)
+			endCol := m.outputCursorCol
+			if m.outputSelectAnchorLine > m.outputCursorLine {
+				startCol = m.outputCursorCol
+				endCol = m.outputSelectAnchorCol
+			}
+			var selected strings.Builder
+			for i := startLine; i <= endLine && i < totalLines; i++ {
+				runes := []rune(lines[i])
+				fromCol := 0
+				toCol := len(runes)
+				if i == startLine {
+					fromCol = min(startCol, len(runes))
+				}
+				if i == endLine {
+					toCol = min(endCol+1, len(runes))
+				}
+				for j := fromCol; j < toCol; j++ {
+					selected.WriteRune(runes[j])
+				}
+				if i < endLine {
+					selected.WriteRune('\n')
+				}
+			}
+			_ = clipboard.WriteAll(selected.String())
+			m.outputSelectMode = "none"
+		} else if m.outputSelectMode == "line" {
+			startLine := min(m.outputSelectAnchorLine, m.outputCursorLine)
+			endLine := max(m.outputSelectAnchorLine, m.outputCursorLine)
+			var selected []string
+			for i := startLine; i <= endLine && i < totalLines; i++ {
+				selected = append(selected, lines[i])
+			}
+			_ = clipboard.WriteAll(strings.Join(selected, "\n"))
+			m.outputSelectMode = "none"
+		} else {
+			if m.outputCursorLine < totalLines {
+				_ = clipboard.WriteAll(lines[m.outputCursorLine])
+			}
+		}
+		return m, nil
+
+	case "Y":
+		_ = clipboard.WriteAll(m.output.View())
+		return m, nil
+
+	case "f":
+		m.jsonPretty = !m.jsonPretty
+		m.setOutput(m.outputRaw)
+		return m, nil
+
+	case "ctrl+g":
+		m.streamFollow = true
+		m.output.GotoBottom()
+		total := m.output.TotalLineCount()
+		if total > 0 {
+			m.outputCursorLine = total - 1
+			lastLine := lines[m.outputCursorLine]
+			lineLen := lipgloss.Width(lastLine)
+			if lineLen > 0 {
+				m.outputCursorCol = lineLen - 1
+			} else {
+				m.outputCursorCol = 0
+			}
+		}
+		return m, nil
+
+	case " ", "pgdown":
+		m.output.ViewDown()
+		m.syncStreamFollowToViewport()
+		return m, nil
+
+	case "pgup":
+		m.output.ViewUp()
+		m.syncStreamFollowToViewport()
+		return m, nil
+
+	case "ctrl+d":
+		m.output.HalfViewDown()
+		m.syncStreamFollowToViewport()
+		return m, nil
+
+	case "ctrl+u":
+		m.output.HalfViewUp()
+		m.syncStreamFollowToViewport()
+		return m, nil
+	}
+
+	return m, nil
 }
 
 func (m *model) assignFocus(f string) {
@@ -926,4 +1383,8 @@ func (m *model) scrollToEditingHeader() {
 func (m *model) scrollToEditingParam() {
 	m.requestSection.paramsView.GotoTop()
 	m.requestSection.paramsView.LineDown(m.requestSection.editingParam)
+}
+
+func isWordChar(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_'
 }

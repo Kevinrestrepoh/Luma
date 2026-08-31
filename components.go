@@ -157,12 +157,16 @@ func (m *model) renderKeybinds() string {
 			parts = []string{"esc normal", "$ env"}
 		}
 	case m.outputInteractMode:
-		parts = []string{"j/k scroll", "ctrl+g follow", "i/esc normal"}
+		if m.outputSelectMode != "none" {
+			parts = []string{"y yank", "esc cancel"}
+		} else {
+			parts = []string{"hjkl move", "w/b/e word", "W/B/E WORD", "v select", "y yank", "Y all", "esc normal"}
+		}
 	case m.focus == "output":
 		if m.jsonPretty {
-			parts = []string{"f raw", "m windows", "p menu", "i inspect", "↵ send", "q quit"}
+			parts = []string{"f raw", "m windows", "i interact", "p menu", "↵ send", "q quit"}
 		} else {
-			parts = []string{"f pretty", "m windows", "p menu", "i inspect", "↵ send", "q quit"}
+			parts = []string{"f pretty", "m windows", "i interact", "p menu", "↵ send", "q quit"}
 		}
 	default:
 		parts = []string{"tab switch", "m windows", "p menu", "i edit", "↵ send", "q quit"}
@@ -184,6 +188,9 @@ func (m *model) setOutput(raw string) {
 		display = tryPrettyJSON(raw)
 	}
 	m.output.SetContent(sanitizeResponseText(display))
+	if m.outputInteractMode {
+		m.clampOutputCursor()
+	}
 }
 
 func tryPrettyJSON(raw string) string {
@@ -196,4 +203,101 @@ func tryPrettyJSON(raw string) string {
 		return raw
 	}
 	return string(out)
+}
+
+var (
+	// Raw ANSI for cursor/selection. Reset restores the TextColor foreground
+	// so the rest of the line keeps its original color after the styled char.
+	cursorANSI    = "\033[48;5;252m\033[38;5;232m"
+	selectionANSI = "\033[48;5;238m\033[38;5;252m"
+	resetForeANSI = "\033[0m\033[38;5;252m"
+)
+
+func (m *model) renderOutputWithCursor() string {
+	content := m.output.View()
+	if !m.outputInteractMode || content == "" {
+		return content
+	}
+
+	lines := strings.Split(content, "\n")
+	totalLines := len(lines)
+	if totalLines == 0 {
+		return content
+	}
+
+	cursorLine := m.outputCursorLine
+	cursorCol := m.outputCursorCol
+	selectMode := m.outputSelectMode
+
+	anchorLine := m.outputSelectAnchorLine
+	anchorCol := m.outputSelectAnchorCol
+
+	// Clamp cursor
+	if cursorLine >= totalLines {
+		cursorLine = totalLines - 1
+	}
+	if cursorLine < 0 {
+		cursorLine = 0
+	}
+	cursorLineLen := lipgloss.Width(lines[cursorLine])
+	if cursorLineLen == 0 {
+		cursorCol = 0
+	} else if cursorCol >= cursorLineLen {
+		cursorCol = cursorLineLen - 1
+	}
+
+	var result []string
+	for i, line := range lines {
+		if line == "" {
+			result = append(result, line)
+			continue
+		}
+
+		runes := []rune(line)
+		var styled []string
+
+		for j := 0; j < len(runes); j++ {
+			char := string(runes[j])
+			isSelected := false
+			isCursor := (i == cursorLine && j == cursorCol)
+
+			switch selectMode {
+			case "char":
+				aLine, aCol := anchorLine, anchorCol
+				cLine, cCol := cursorLine, cursorCol
+				if aLine > cLine || (aLine == cLine && aCol > cCol) {
+					aLine, aCol, cLine, cCol = cLine, cCol, aLine, aCol
+				}
+				if i == aLine && i == cLine {
+					isSelected = j >= aCol && j <= cCol
+				} else if i == aLine {
+					isSelected = j >= aCol
+				} else if i == cLine {
+					isSelected = j <= cCol
+				} else if i > aLine && i < cLine {
+					isSelected = true
+				}
+			case "line":
+				minLine := anchorLine
+				maxLine := cursorLine
+				if anchorLine > cursorLine {
+					minLine = cursorLine
+					maxLine = anchorLine
+				}
+				isSelected = i >= minLine && i <= maxLine
+			}
+
+			if isCursor {
+				styled = append(styled, cursorANSI+char+resetForeANSI)
+			} else if isSelected {
+				styled = append(styled, selectionANSI+char+resetForeANSI)
+			} else {
+				styled = append(styled, char)
+			}
+		}
+
+		result = append(result, strings.Join(styled, ""))
+	}
+
+	return strings.Join(result, "\n")
 }
